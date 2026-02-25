@@ -330,6 +330,8 @@ pub struct PublishConfig {
     pub mirror_dir: Option<PathBuf>,
     #[serde(default = "default_true")]
     pub mirror_source_subdir: bool,
+    #[serde(default)]
+    pub file_name_template: Option<String>,
 }
 
 pub fn load_sources_from_dir(config_dir: &Path) -> Result<Vec<LoadedSource>> {

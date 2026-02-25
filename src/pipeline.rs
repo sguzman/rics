@@ -452,16 +452,23 @@ fn rebuild_source_calendars(
             let b_key = event_sort_key(b);
             a_key.cmp(&b_key)
         });
-        let path = source_dir.join(ics_filename(&file_prefix, year));
+        let file_name = source_ics_filename(source, &file_prefix, year);
+        let path = source_dir.join(&file_name);
         write_source_year_calendar(&source.config, year, &events, &path)?;
+        if source.config.publish.file_name_template.is_some() {
+            cleanup_noncanonical_files_for_year(&source_dir, year, &file_name, &file_prefix)?;
+        }
         if let Some(mirror_dir) = &mirror_source_dir {
-            let mirror_path = mirror_dir.join(ics_filename(&file_prefix, year));
+            let mirror_path = mirror_dir.join(&file_name);
             std::fs::copy(&path, &mirror_path).with_context(|| {
                 format!(
                     "failed to publish mirrored calendar {}",
                     mirror_path.display()
                 )
             })?;
+            if source.config.publish.file_name_template.is_some() {
+                cleanup_noncanonical_files_for_year(mirror_dir, year, &file_name, &file_prefix)?;
+            }
             info!(
                 source = %source.config.source.key,
                 year,
@@ -540,7 +547,7 @@ fn cleanup_stale_year_files(
             continue;
         }
 
-        let Some(file_year) = parse_year_from_filename(file_name, file_prefix) else {
+        let Some(file_year) = extract_year_from_any_ics_filename(file_name, file_prefix) else {
             continue;
         };
 
@@ -556,6 +563,32 @@ fn cleanup_stale_year_files(
 
 fn ics_filename(file_prefix: &str, year: i32) -> String {
     format!("{file_prefix}-{year}.ics")
+}
+
+fn source_ics_filename(source: &LoadedSource, file_prefix: &str, year: i32) -> String {
+    let Some(template) = source.config.publish.file_name_template.as_deref() else {
+        return ics_filename(file_prefix, year);
+    };
+
+    let mut file_name = template.to_string();
+    file_name = file_name.replace("{{year}}", &year.to_string());
+    file_name = file_name.replace("{{source_key}}", &source.config.source.key);
+    file_name = file_name.replace("{{source_dir}}", file_prefix);
+
+    if let Some(country) = source.config.source.default_country.as_deref() {
+        file_name = file_name.replace("{{country}}", &country.to_ascii_lowercase());
+        file_name = file_name.replace("{{country_upper}}", &country.to_ascii_uppercase());
+    }
+
+    for (key, value) in &source.config.fetch.template_vars {
+        file_name = file_name.replace(&format!("{{{{{key}}}}}"), value);
+    }
+
+    if file_name.ends_with(".ics") {
+        file_name
+    } else {
+        format!("{file_name}.ics")
+    }
 }
 
 fn parse_year_from_filename(file_name: &str, file_prefix: &str) -> Option<i32> {
@@ -574,10 +607,42 @@ fn is_legacy_year_only_filename(file_name: &str) -> bool {
 
 fn extract_year_from_any_ics_filename(file_name: &str, file_prefix: &str) -> Option<i32> {
     parse_year_from_filename(file_name, file_prefix).or_else(|| {
-        file_name
-            .strip_suffix(".ics")
-            .and_then(|stem| stem.parse::<i32>().ok())
+        let stem = file_name.strip_suffix(".ics")?;
+        if let Ok(year) = stem.parse::<i32>() {
+            return Some(year);
+        }
+        let re = regex::Regex::new(r"(19|20)\d{2}").ok()?;
+        let found = re.find(stem)?;
+        found.as_str().parse::<i32>().ok()
     })
+}
+
+fn cleanup_noncanonical_files_for_year(
+    dir: &Path,
+    year: i32,
+    keep_file_name: &str,
+    file_prefix: &str,
+) -> Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("ics") {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if name == keep_file_name {
+            continue;
+        }
+        if extract_year_from_any_ics_filename(name, file_prefix) != Some(year) {
+            continue;
+        }
+        std::fs::remove_file(&path)
+            .with_context(|| format!("failed to remove noncanonical file {}", path.display()))?;
+        warn!(file = %path.display(), "removed noncanonical calendar file");
+    }
+    Ok(())
 }
 
 fn event_sort_key(event: &EventRecord) -> String {
