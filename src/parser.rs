@@ -57,6 +57,7 @@ fn run_custom_parser(
     let parser: Box<dyn CustomParser> = match parser_key {
         "oecd_publications_v1" => Box::new(OecdPublicationsParser),
         "rough_text_lines_v1" => Box::new(RoughTextLinesParser),
+        "econ_indicators_calendar_v1" => Box::new(EconIndicatorsCalendarParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -1245,6 +1246,219 @@ impl CustomParser for RoughTextLinesParser {
         }
 
         Ok(events)
+    }
+}
+
+struct EconIndicatorsCalendarParser;
+
+impl CustomParser for EconIndicatorsCalendarParser {
+    fn key(&self) -> &'static str {
+        "econ_indicators_calendar_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let mut events = Vec::new();
+        let day_header = Regex::new(
+            r"^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})",
+        )
+        .expect("day header regex must compile");
+        let time_line =
+            Regex::new(r"^(\d{1,2}:\d{2}\s*[AP]M)$").expect("time line regex must compile");
+        let split_columns = Regex::new(r"\s{2,}").expect("split columns regex must compile");
+        let current_country = source
+            .config
+            .fetch
+            .template_vars
+            .get("country")
+            .cloned()
+            .or_else(|| source.config.source.default_country.clone())
+            .unwrap_or_else(|| "US".to_string())
+            .to_ascii_uppercase();
+
+        for doc in docs {
+            let payload = String::from_utf8_lossy(&doc.body);
+            let mut active_date: Option<NaiveDate> = None;
+            let mut active_time: Option<String> = None;
+            let mut waiting_for_country = false;
+
+            for raw in payload.lines() {
+                let line = raw.trim();
+                if line.is_empty() {
+                    continue;
+                }
+
+                if let Some(caps) = day_header.captures(line) {
+                    let month = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
+                    let day = caps.get(3).map(|m| m.as_str()).unwrap_or_default();
+                    let year = caps.get(4).map(|m| m.as_str()).unwrap_or_default();
+                    let date_str = format!("{month} {day} {year}");
+                    active_date = NaiveDate::parse_from_str(&date_str, "%B %d %Y")
+                        .ok()
+                        .or_else(|| NaiveDate::parse_from_str(&date_str, "%b %d %Y").ok());
+                    active_time = None;
+                    waiting_for_country = false;
+                    continue;
+                }
+
+                if let Some(caps) = time_line.captures(line) {
+                    active_time = caps.get(1).map(|m| m.as_str().to_string());
+                    waiting_for_country = true;
+                    continue;
+                }
+
+                if waiting_for_country {
+                    if line.eq_ignore_ascii_case(&current_country) {
+                        waiting_for_country = false;
+                        continue;
+                    }
+
+                    // If country row is missing, continue with this line as payload.
+                    waiting_for_country = false;
+                }
+
+                let Some(date) = active_date else {
+                    continue;
+                };
+                let Some(time_text) = active_time.as_deref() else {
+                    continue;
+                };
+
+                let Some(start) =
+                    combine_date_time(date, time_text, source.config.source.timezone.as_deref())?
+                else {
+                    continue;
+                };
+
+                let columns = split_columns
+                    .split(line)
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .collect::<Vec<_>>();
+                if columns.is_empty() {
+                    continue;
+                }
+
+                let title = columns[0].to_string();
+                let actual = columns.get(1).map(|v| v.to_string());
+                let previous = columns.get(2).map(|v| v.to_string());
+                let consensus = columns.get(3).map(|v| v.to_string());
+                let forecast = columns.get(4).map(|v| v.to_string());
+
+                let mut metadata = BTreeMap::new();
+                metadata.insert("country".to_string(), current_country.clone());
+                metadata.insert("custom_parser".to_string(), self.key().to_string());
+                if let Some(value) = &actual {
+                    metadata.insert("actual".to_string(), value.clone());
+                }
+                if let Some(value) = &previous {
+                    metadata.insert("previous".to_string(), value.clone());
+                }
+                if let Some(value) = &consensus {
+                    metadata.insert("consensus".to_string(), value.clone());
+                }
+                if let Some(value) = &forecast {
+                    metadata.insert("forecast".to_string(), value.clone());
+                }
+
+                let id = format!(
+                    "{}|{}|{}|{}",
+                    current_country,
+                    date.format("%Y-%m-%d"),
+                    time_text,
+                    title
+                );
+
+                let description = build_econ_description(actual, previous, consensus, forecast);
+
+                events.push(CandidateEvent {
+                    source_key: source.config.source.key.clone(),
+                    source_name: source.config.source.name.clone(),
+                    source_event_id: Some(id),
+                    source_url: Some(doc.source_url.clone()),
+                    title,
+                    description,
+                    time: EventTimeSpec::DateTime { start, end: None },
+                    timezone: source.config.source.timezone.clone(),
+                    status: source.config.event.status.clone(),
+                    event_type: source.config.event.event_type.clone(),
+                    subtype: source.config.event.subtype.clone(),
+                    categories: source.config.event.categories.clone(),
+                    jurisdiction: source.config.source.jurisdiction.clone(),
+                    country: Some(current_country.clone()),
+                    importance: source.config.event.importance,
+                    confidence: Some(0.9),
+                    metadata,
+                });
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+fn combine_date_time(
+    date: NaiveDate,
+    time_text: &str,
+    timezone: Option<&str>,
+) -> Result<Option<DateTime<Utc>>> {
+    let time = NaiveDateTime::parse_from_str(
+        &format!("{} {}", date.format("%Y-%m-%d"), time_text.replace(" ", "")),
+        "%Y-%m-%d %I:%M%p",
+    )
+    .ok()
+    .or_else(|| {
+        NaiveDateTime::parse_from_str(
+            &format!("{} {}", date.format("%Y-%m-%d"), time_text),
+            "%Y-%m-%d %I:%M %p",
+        )
+        .ok()
+    });
+
+    let Some(naive) = time else {
+        return Ok(None);
+    };
+
+    if let Some(tz_name) = timezone
+        && let Ok(tz) = tz_name.parse::<Tz>()
+        && let Some(dt) = tz
+            .from_local_datetime(&naive)
+            .earliest()
+            .or_else(|| tz.from_local_datetime(&naive).latest())
+    {
+        return Ok(Some(dt.with_timezone(&Utc)));
+    }
+
+    Ok(Some(Utc.from_utc_datetime(&naive)))
+}
+
+fn build_econ_description(
+    actual: Option<String>,
+    previous: Option<String>,
+    consensus: Option<String>,
+    forecast: Option<String>,
+) -> Option<String> {
+    let mut lines = Vec::new();
+    if let Some(v) = actual {
+        lines.push(format!("Actual: {v}"));
+    }
+    if let Some(v) = previous {
+        lines.push(format!("Previous: {v}"));
+    }
+    if let Some(v) = consensus {
+        lines.push(format!("Consensus: {v}"));
+    }
+    if let Some(v) = forecast {
+        lines.push(format!("Forecast: {v}"));
+    }
+
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
     }
 }
 

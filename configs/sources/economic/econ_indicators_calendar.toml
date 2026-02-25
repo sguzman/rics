@@ -1,0 +1,37 @@
+[source]
+key = "economic.indicators.calendar"
+name = "Economic Indicators Calendar"
+domain = "economic-indicators"
+enabled = true
+timezone = "America/Mexico_City"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../tmp/{{country_code}}-{{target_year}}-{{target_month}}.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+template_vars = { country_code = "us", target_year = "2026", target_month = "feb", country = "US" }
+
+[extract]
+format = "text"
+
+[date]
+primary = "start"
+formats = ["%Y-%m-%d %H:%M"]
+assume_timezone = "America/Mexico_City"
+allow_month_only = false
+allow_year_only = false
+
+[event]
+event_type = "economic_indicator"
+subtype = "macro_release"
+status = "scheduled"
+categories = ["economic-indicators", "macro", "calendar"]
+importance = 70
+
+[custom]
+enabled = true
+parser = "econ_indicators_calendar_v1"

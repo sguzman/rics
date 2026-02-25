@@ -111,6 +111,8 @@ pub struct FetchConfig {
     pub inline_data: Option<String>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub template_vars: BTreeMap<String, String>,
     #[serde(default = "default_timeout_secs")]
     pub timeout_secs: u64,
     #[serde(default = "default_retry_attempts")]
@@ -130,6 +132,7 @@ impl Default for FetchConfig {
             file_path: None,
             inline_data: None,
             headers: BTreeMap::new(),
+            template_vars: BTreeMap::new(),
             timeout_secs: default_timeout_secs(),
             retry_attempts: default_retry_attempts(),
             retry_backoff_ms: default_retry_backoff_ms(),

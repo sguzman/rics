@@ -38,7 +38,8 @@ fn fetch_http_documents(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
     ensure_default_headers(&mut headers);
 
     if let Some(user_agent) = &source.config.fetch.user_agent {
-        headers.insert(USER_AGENT, HeaderValue::from_str(user_agent)?);
+        let rendered = apply_templates(user_agent, &substitutions);
+        headers.insert(USER_AGENT, HeaderValue::from_str(&rendered)?);
     }
 
     let client = Client::builder()
@@ -146,14 +147,51 @@ fn insert_if_missing(headers: &mut HeaderMap, name: &'static str, value: &'stati
 }
 
 fn template_substitutions(source: &LoadedSource) -> Vec<(String, String)> {
-    let year = current_year_for_source(source);
-    let today = Utc::now().date_naive().to_string();
-    vec![
+    let now_utc = Utc::now();
+    let now_local = if let Some(tz_name) = source.config.source.timezone.as_deref()
+        && let Ok(tz) = tz_name.parse::<Tz>()
+    {
+        now_utc.with_timezone(&tz).naive_local()
+    } else {
+        now_utc.naive_utc()
+    };
+    let year = now_local.year();
+
+    let mut values = vec![
         ("{{current_year}}".to_string(), year.to_string()),
         ("{{year}}".to_string(), year.to_string()),
         ("{{next_year}}".to_string(), (year + 1).to_string()),
-        ("{{today_ymd}}".to_string(), today),
-    ]
+        (
+            "{{today_ymd}}".to_string(),
+            now_local.date().format("%Y-%m-%d").to_string(),
+        ),
+        (
+            "{{current_month_short}}".to_string(),
+            now_local.format("%b").to_string().to_ascii_lowercase(),
+        ),
+        (
+            "{{current_month_long}}".to_string(),
+            now_local.format("%B").to_string(),
+        ),
+        (
+            "{{current_month_num}}".to_string(),
+            now_local.format("%m").to_string(),
+        ),
+    ];
+
+    if let Some(country) = source.config.source.default_country.as_deref() {
+        values.push(("{{country}}".to_string(), country.to_ascii_lowercase()));
+        values.push((
+            "{{country_upper}}".to_string(),
+            country.to_ascii_uppercase(),
+        ));
+    }
+
+    for (key, value) in &source.config.fetch.template_vars {
+        values.push((format!("{{{{{key}}}}}"), value.clone()));
+    }
+
+    values
 }
 
 fn apply_templates(input: &str, substitutions: &[(String, String)]) -> String {
@@ -162,16 +200,6 @@ fn apply_templates(input: &str, substitutions: &[(String, String)]) -> String {
         out = out.replace(pattern, value);
     }
     out
-}
-
-fn current_year_for_source(source: &LoadedSource) -> i32 {
-    if let Some(tz_name) = source.config.source.timezone.as_deref()
-        && let Ok(tz) = tz_name.parse::<Tz>()
-    {
-        return Utc::now().with_timezone(&tz).year();
-    }
-
-    Utc::now().year()
 }
 
 fn fetch_with_retries(
@@ -223,7 +251,9 @@ fn fetch_file_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
         .file_path
         .as_ref()
         .context("fetch.file_path missing for file mode")?;
-    let resolved = resolve_path(&source.path, file_path)?;
+    let substitutions = template_substitutions(source);
+    let rendered = apply_templates(&file_path.to_string_lossy(), &substitutions);
+    let resolved = resolve_path(&source.path, std::path::Path::new(&rendered))?;
     let bytes = std::fs::read(&resolved)
         .with_context(|| format!("failed to read file source {}", resolved.display()))?;
 
@@ -248,6 +278,8 @@ fn fetch_inline_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> 
         .inline_data
         .as_ref()
         .context("fetch.inline_data missing for inline mode")?;
+    let substitutions = template_substitutions(source);
+    let inline = apply_templates(inline, &substitutions);
 
     debug!(
         source = %source.config.source.key,
@@ -257,7 +289,7 @@ fn fetch_inline_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> 
 
     Ok(vec![FetchedDocument {
         source_url: format!("inline://{}", source.config.source.key),
-        body: inline.as_bytes().to_vec(),
+        body: inline.into_bytes(),
         page_index: 0,
     }])
 }
