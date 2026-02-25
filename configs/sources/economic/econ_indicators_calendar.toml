@@ -9,11 +9,11 @@ default_country = "US"
 
 [fetch]
 mode = "file"
-file_path = "../../../tmp/{{country_code}}-{{target_year}}-*.txt"
+file_path = "../../../tmp/many-{{target_year}}-*.txt"
 timeout_secs = 10
 retry_attempts = 1
 retry_backoff_ms = 10
-template_vars = { country_code = "us", target_year = "2026", country = "US" }
+template_vars = { target_year = "2026" }
 
 [extract]
 format = "text"
@@ -39,4 +39,5 @@ parser = "econ_indicators_calendar_v1"
 [publish]
 mirror_dir = "/home/admin/Code/calendars/rics"
 mirror_source_subdir = true
-file_name_template = "econ-{{country_code}}-{{year}}.ics"
+file_name_template = "econ-{{country}}-{{year}}.ics"
+split_by_country = true

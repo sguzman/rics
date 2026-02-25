@@ -332,6 +332,8 @@ pub struct PublishConfig {
     pub mirror_source_subdir: bool,
     #[serde(default)]
     pub file_name_template: Option<String>,
+    #[serde(default)]
+    pub split_by_country: bool,
 }
 
 pub fn load_sources_from_dir(config_dir: &Path) -> Result<Vec<LoadedSource>> {

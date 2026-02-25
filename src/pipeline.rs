@@ -410,6 +410,12 @@ fn rebuild_source_calendars(
     year_filter: Option<i32>,
     changed_years: Option<BTreeSet<i32>>,
 ) -> Result<()> {
+    if let Some(changed) = &changed_years
+        && changed.is_empty()
+    {
+        return Ok(());
+    }
+
     let mut by_year: HashMap<i32, Vec<&EventRecord>> = HashMap::new();
     for event in state.events.values().filter(|event| {
         event.source_key == source.config.source.key
@@ -446,91 +452,112 @@ fn rebuild_source_calendars(
             .with_context(|| format!("failed to create mirror dir {}", mirror_dir.display()))?;
     }
 
-    for (year, mut events) in by_year {
-        events.sort_by(|a, b| {
-            let a_key = event_sort_key(a);
-            let b_key = event_sort_key(b);
-            a_key.cmp(&b_key)
-        });
-        let file_name = source_ics_filename(source, &file_prefix, year);
-        let path = source_dir.join(&file_name);
-        write_source_year_calendar(&source.config, year, &events, &path)?;
-        if source.config.publish.file_name_template.is_some() {
-            cleanup_noncanonical_files_for_year(&source_dir, year, &file_name, &file_prefix)?;
+    let mut expected_files = HashSet::new();
+
+    if source.config.publish.split_by_country {
+        let mut by_country_year: HashMap<(String, i32), Vec<&EventRecord>> = HashMap::new();
+        for (year, events) in by_year {
+            for event in events {
+                let country = event
+                    .country
+                    .clone()
+                    .unwrap_or_else(|| "xx".to_string())
+                    .to_ascii_lowercase();
+                by_country_year
+                    .entry((country, year))
+                    .or_default()
+                    .push(event);
+            }
         }
-        if let Some(mirror_dir) = &mirror_source_dir {
-            let mirror_path = mirror_dir.join(&file_name);
-            std::fs::copy(&path, &mirror_path).with_context(|| {
-                format!(
-                    "failed to publish mirrored calendar {}",
-                    mirror_path.display()
-                )
-            })?;
-            if source.config.publish.file_name_template.is_some() {
-                cleanup_noncanonical_files_for_year(mirror_dir, year, &file_name, &file_prefix)?;
+
+        for ((country, year), mut events) in by_country_year {
+            events.sort_by(|a, b| {
+                let a_key = event_sort_key(a);
+                let b_key = event_sort_key(b);
+                a_key.cmp(&b_key)
+            });
+            let file_name = source_ics_filename(source, &file_prefix, year, Some(&country));
+            expected_files.insert(file_name.clone());
+            let path = source_dir.join(&file_name);
+            write_source_year_calendar(&source.config, year, &events, &path)?;
+            if let Some(mirror_dir) = &mirror_source_dir {
+                let mirror_path = mirror_dir.join(&file_name);
+                std::fs::copy(&path, &mirror_path).with_context(|| {
+                    format!(
+                        "failed to publish mirrored calendar {}",
+                        mirror_path.display()
+                    )
+                })?;
+                info!(
+                    source = %source.config.source.key,
+                    year,
+                    country = %country,
+                    mirror = %mirror_path.display(),
+                    "calendar file mirrored"
+                );
             }
             info!(
                 source = %source.config.source.key,
                 year,
-                mirror = %mirror_path.display(),
-                "calendar file mirrored"
+                country = %country,
+                events = events.len(),
+                file = %path.display(),
+                "calendar file rebuilt"
             );
         }
-        info!(
-            source = %source.config.source.key,
-            year,
-            events = events.len(),
-            file = %path.display(),
-            "calendar file rebuilt"
-        );
+    } else {
+        for (year, mut events) in by_year {
+            events.sort_by(|a, b| {
+                let a_key = event_sort_key(a);
+                let b_key = event_sort_key(b);
+                a_key.cmp(&b_key)
+            });
+            let file_name = source_ics_filename(source, &file_prefix, year, None);
+            expected_files.insert(file_name.clone());
+            let path = source_dir.join(&file_name);
+            write_source_year_calendar(&source.config, year, &events, &path)?;
+            if let Some(mirror_dir) = &mirror_source_dir {
+                let mirror_path = mirror_dir.join(&file_name);
+                std::fs::copy(&path, &mirror_path).with_context(|| {
+                    format!(
+                        "failed to publish mirrored calendar {}",
+                        mirror_path.display()
+                    )
+                })?;
+                info!(
+                    source = %source.config.source.key,
+                    year,
+                    mirror = %mirror_path.display(),
+                    "calendar file mirrored"
+                );
+            }
+            info!(
+                source = %source.config.source.key,
+                year,
+                events = events.len(),
+                file = %path.display(),
+                "calendar file rebuilt"
+            );
+        }
     }
 
     if source_dir.exists() {
-        cleanup_stale_year_files(
-            &source_dir,
-            state,
-            &source.config.source.key,
-            &file_prefix,
-            year_filter,
-        )?;
+        cleanup_stale_calendar_files(&source_dir, &expected_files, &file_prefix)?;
     }
     if let Some(mirror_dir) = &mirror_source_dir
         && mirror_dir.exists()
     {
-        cleanup_stale_year_files(
-            mirror_dir,
-            state,
-            &source.config.source.key,
-            &file_prefix,
-            year_filter,
-        )?;
+        cleanup_stale_calendar_files(mirror_dir, &expected_files, &file_prefix)?;
     }
 
     Ok(())
 }
 
-fn cleanup_stale_year_files(
+fn cleanup_stale_calendar_files(
     source_dir: &Path,
-    state: &State,
-    source_key: &str,
+    expected_files: &HashSet<String>,
     file_prefix: &str,
-    year_filter: Option<i32>,
 ) -> Result<()> {
-    let mut existing_years = HashSet::new();
-    for event in state
-        .events
-        .values()
-        .filter(|event| event.source_key == source_key)
-    {
-        if let Some(year) = event.year_bucket() {
-            existing_years.insert(year);
-        }
-    }
-
-    if let Some(year) = year_filter {
-        existing_years.retain(|v| *v == year);
-    }
-
     for entry in std::fs::read_dir(source_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -540,21 +567,17 @@ fn cleanup_stale_year_files(
         let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        if is_legacy_year_only_filename(file_name) {
-            std::fs::remove_file(&path)
-                .with_context(|| format!("failed to remove legacy file {}", path.display()))?;
-            warn!(file = %path.display(), "removed legacy calendar file");
-            continue;
-        }
-
-        let Some(file_year) = extract_year_from_any_ics_filename(file_name, file_prefix) else {
-            continue;
-        };
-
-        if !existing_years.contains(&file_year) {
+        if is_legacy_year_only_filename(file_name) || !expected_files.contains(file_name) {
             std::fs::remove_file(&path)
                 .with_context(|| format!("failed to remove stale file {}", path.display()))?;
-            warn!(file = %path.display(), "removed stale calendar file");
+            let marker = extract_year_from_any_ics_filename(file_name, file_prefix)
+                .map(|y| y.to_string())
+                .unwrap_or_else(|| "unknown-year".to_string());
+            warn!(
+                file = %path.display(),
+                marker = %marker,
+                "removed stale calendar file"
+            );
         }
     }
 
@@ -565,7 +588,12 @@ fn ics_filename(file_prefix: &str, year: i32) -> String {
     format!("{file_prefix}-{year}.ics")
 }
 
-fn source_ics_filename(source: &LoadedSource, file_prefix: &str, year: i32) -> String {
+fn source_ics_filename(
+    source: &LoadedSource,
+    file_prefix: &str,
+    year: i32,
+    country: Option<&str>,
+) -> String {
     let Some(template) = source.config.publish.file_name_template.as_deref() else {
         return ics_filename(file_prefix, year);
     };
@@ -576,6 +604,10 @@ fn source_ics_filename(source: &LoadedSource, file_prefix: &str, year: i32) -> S
     file_name = file_name.replace("{{source_dir}}", file_prefix);
 
     if let Some(country) = source.config.source.default_country.as_deref() {
+        file_name = file_name.replace("{{country}}", &country.to_ascii_lowercase());
+        file_name = file_name.replace("{{country_upper}}", &country.to_ascii_uppercase());
+    }
+    if let Some(country) = country {
         file_name = file_name.replace("{{country}}", &country.to_ascii_lowercase());
         file_name = file_name.replace("{{country_upper}}", &country.to_ascii_uppercase());
     }
@@ -615,34 +647,6 @@ fn extract_year_from_any_ics_filename(file_name: &str, file_prefix: &str) -> Opt
         let found = re.find(stem)?;
         found.as_str().parse::<i32>().ok()
     })
-}
-
-fn cleanup_noncanonical_files_for_year(
-    dir: &Path,
-    year: i32,
-    keep_file_name: &str,
-    file_prefix: &str,
-) -> Result<()> {
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("ics") {
-            continue;
-        }
-        let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if name == keep_file_name {
-            continue;
-        }
-        if extract_year_from_any_ics_filename(name, file_prefix) != Some(year) {
-            continue;
-        }
-        std::fs::remove_file(&path)
-            .with_context(|| format!("failed to remove noncanonical file {}", path.display()))?;
-        warn!(file = %path.display(), "removed noncanonical calendar file");
-    }
-    Ok(())
 }
 
 fn event_sort_key(event: &EventRecord) -> String {

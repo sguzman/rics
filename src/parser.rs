@@ -1269,21 +1269,23 @@ impl CustomParser for EconIndicatorsCalendarParser {
         let time_line =
             Regex::new(r"^(\d{1,2}:\d{2}\s*[AP]M)$").expect("time line regex must compile");
         let split_columns = Regex::new(r"\s{2,}").expect("split columns regex must compile");
-        let current_country = source
+        let default_country = source
             .config
             .fetch
             .template_vars
             .get("country")
             .cloned()
             .or_else(|| source.config.source.default_country.clone())
-            .unwrap_or_else(|| "US".to_string())
+            .unwrap_or_else(|| "XX".to_string())
             .to_ascii_uppercase();
+        let country_line_re = Regex::new(r"^[A-Z]{2,3}$").expect("country-line regex must compile");
 
         for doc in docs {
             let payload = String::from_utf8_lossy(&doc.body);
             let mut active_date: Option<NaiveDate> = None;
             let mut active_time: Option<String> = None;
             let mut waiting_for_country = false;
+            let mut active_country: Option<String> = None;
 
             for raw in payload.lines() {
                 let line = raw.trim();
@@ -1300,6 +1302,7 @@ impl CustomParser for EconIndicatorsCalendarParser {
                         .ok()
                         .or_else(|| NaiveDate::parse_from_str(&date_str, "%b %d %Y").ok());
                     active_time = None;
+                    active_country = None;
                     waiting_for_country = false;
                     continue;
                 }
@@ -1311,7 +1314,8 @@ impl CustomParser for EconIndicatorsCalendarParser {
                 }
 
                 if waiting_for_country {
-                    if line.eq_ignore_ascii_case(&current_country) {
+                    if country_line_re.is_match(line) {
+                        active_country = Some(line.to_ascii_uppercase());
                         waiting_for_country = false;
                         continue;
                     }
@@ -1326,6 +1330,9 @@ impl CustomParser for EconIndicatorsCalendarParser {
                 let Some(time_text) = active_time.as_deref() else {
                     continue;
                 };
+                let country = active_country
+                    .clone()
+                    .unwrap_or_else(|| default_country.clone());
 
                 let Some(start) =
                     combine_date_time(date, time_text, source.config.source.timezone.as_deref())?
@@ -1349,7 +1356,7 @@ impl CustomParser for EconIndicatorsCalendarParser {
                 let forecast = columns.get(4).map(|v| v.to_string());
 
                 let mut metadata = BTreeMap::new();
-                metadata.insert("country".to_string(), current_country.clone());
+                metadata.insert("country".to_string(), country.clone());
                 metadata.insert("custom_parser".to_string(), self.key().to_string());
                 if let Some(value) = &actual {
                     metadata.insert("actual".to_string(), value.clone());
@@ -1366,7 +1373,7 @@ impl CustomParser for EconIndicatorsCalendarParser {
 
                 let id = format!(
                     "{}|{}|{}|{}",
-                    current_country,
+                    country,
                     date.format("%Y-%m-%d"),
                     time_text,
                     title
@@ -1388,7 +1395,7 @@ impl CustomParser for EconIndicatorsCalendarParser {
                     subtype: source.config.event.subtype.clone(),
                     categories: source.config.event.categories.clone(),
                     jurisdiction: source.config.source.jurisdiction.clone(),
-                    country: Some(current_country.clone()),
+                    country: Some(country),
                     importance: source.config.event.importance,
                     confidence: Some(0.9),
                     metadata,
