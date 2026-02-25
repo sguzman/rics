@@ -2,6 +2,7 @@ use crate::config::{FetchMode, LoadedSource, PaginationStrategy, resolve_path};
 use anyhow::{Context, Result, bail};
 use chrono::{Datelike, Utc};
 use chrono_tz::Tz;
+use glob::glob;
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT};
 use std::time::Duration;
@@ -254,6 +255,39 @@ fn fetch_file_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
     let substitutions = template_substitutions(source);
     let rendered = apply_templates(&file_path.to_string_lossy(), &substitutions);
     let resolved = resolve_path(&source.path, std::path::Path::new(&rendered))?;
+    let resolved_str = resolved.to_string_lossy().to_string();
+
+    if has_glob_pattern(&resolved_str) {
+        let mut docs = Vec::new();
+        let mut matched_files = glob(&resolved_str)
+            .with_context(|| format!("invalid file glob pattern {}", resolved_str))?
+            .collect::<Result<Vec<_>, _>>()
+            .with_context(|| format!("error iterating file glob {}", resolved_str))?;
+        matched_files.sort();
+
+        if matched_files.is_empty() {
+            bail!("no files matched file glob pattern {}", resolved_str);
+        }
+
+        for (index, path) in matched_files.into_iter().enumerate() {
+            let bytes = std::fs::read(&path)
+                .with_context(|| format!("failed to read file source {}", path.display()))?;
+            docs.push(FetchedDocument {
+                source_url: format!("file://{}", path.display()),
+                body: bytes,
+                page_index: index,
+            });
+        }
+
+        info!(
+            source = %source.config.source.key,
+            pattern = %resolved_str,
+            files = docs.len(),
+            "loaded file source glob"
+        );
+        return Ok(docs);
+    }
+
     let bytes = std::fs::read(&resolved)
         .with_context(|| format!("failed to read file source {}", resolved.display()))?;
 
@@ -269,6 +303,10 @@ fn fetch_file_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
         body: bytes,
         page_index: 0,
     }])
+}
+
+fn has_glob_pattern(path: &str) -> bool {
+    path.contains('*') || path.contains('?') || path.contains('[')
 }
 
 fn fetch_inline_document(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
