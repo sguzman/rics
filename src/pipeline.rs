@@ -603,11 +603,10 @@ fn source_ics_filename(
     file_name = file_name.replace("{{source_key}}", &source.config.source.key);
     file_name = file_name.replace("{{source_dir}}", file_prefix);
 
-    if let Some(country) = source.config.source.default_country.as_deref() {
+    if let Some(country) = country {
         file_name = file_name.replace("{{country}}", &country.to_ascii_lowercase());
         file_name = file_name.replace("{{country_upper}}", &country.to_ascii_uppercase());
-    }
-    if let Some(country) = country {
+    } else if let Some(country) = source.config.source.default_country.as_deref() {
         file_name = file_name.replace("{{country}}", &country.to_ascii_lowercase());
         file_name = file_name.replace("{{country_upper}}", &country.to_ascii_uppercase());
     }

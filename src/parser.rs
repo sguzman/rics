@@ -1279,6 +1279,29 @@ impl CustomParser for EconIndicatorsCalendarParser {
             .unwrap_or_else(|| "XX".to_string())
             .to_ascii_uppercase();
         let country_line_re = Regex::new(r"^[A-Z]{2,3}$").expect("country-line regex must compile");
+        let noise_lines = [
+            "news",
+            "markets",
+            "indicators",
+            "countries",
+            "forecasts",
+            "interest rate",
+            "inflation rate",
+            "unemployment rate",
+            "gdp growth",
+            "gdp per capita",
+            "current account",
+            "gold reserves",
+            "government debt",
+            "crude oil production",
+            "gasoline prices",
+            "credit rating",
+            "more indicators",
+            "actual",
+            "previous",
+            "consensus",
+            "forecast",
+        ];
 
         for doc in docs {
             let payload = String::from_utf8_lossy(&doc.body);
@@ -1290,6 +1313,10 @@ impl CustomParser for EconIndicatorsCalendarParser {
             for raw in payload.lines() {
                 let line = raw.trim();
                 if line.is_empty() {
+                    continue;
+                }
+                let line_lower = line.to_ascii_lowercase();
+                if noise_lines.contains(&line_lower.as_str()) || line_lower.starts_with("utc ") {
                     continue;
                 }
 
@@ -1324,6 +1351,12 @@ impl CustomParser for EconIndicatorsCalendarParser {
                     waiting_for_country = false;
                 }
 
+                if country_line_re.is_match(line) {
+                    // Standalone country marker; don't emit as event title.
+                    active_country = Some(line.to_ascii_uppercase());
+                    continue;
+                }
+
                 let Some(date) = active_date else {
                     continue;
                 };
@@ -1350,6 +1383,9 @@ impl CustomParser for EconIndicatorsCalendarParser {
                 }
 
                 let title = columns[0].to_string();
+                if title.len() < 4 || !title.chars().any(|c| c.is_ascii_alphabetic()) {
+                    continue;
+                }
                 let actual = columns.get(1).map(|v| v.to_string());
                 let previous = columns.get(2).map(|v| v.to_string());
                 let consensus = columns.get(3).map(|v| v.to_string());
