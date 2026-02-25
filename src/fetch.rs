@@ -1,5 +1,7 @@
 use crate::config::{FetchMode, LoadedSource, PaginationStrategy, resolve_path};
 use anyhow::{Context, Result, bail};
+use chrono::{Datelike, Utc};
+use chrono_tz::Tz;
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT};
 use std::time::Duration;
@@ -22,14 +24,18 @@ pub fn fetch_source_documents(source: &LoadedSource) -> Result<Vec<FetchedDocume
 }
 
 fn fetch_http_documents(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
+    let substitutions = template_substitutions(source);
     let mut headers = HeaderMap::new();
     for (k, v) in &source.config.fetch.headers {
         let name = HeaderName::from_bytes(k.as_bytes())
             .with_context(|| format!("invalid header name {k}"))?;
-        let value =
-            HeaderValue::from_str(v).with_context(|| format!("invalid header value for {k}"))?;
+        let rendered = apply_templates(v, &substitutions);
+        let value = HeaderValue::from_str(&rendered)
+            .with_context(|| format!("invalid header value for {k}"))?;
         headers.insert(name, value);
     }
+
+    ensure_default_headers(&mut headers);
 
     if let Some(user_agent) = &source.config.fetch.user_agent {
         headers.insert(USER_AGENT, HeaderValue::from_str(user_agent)?);
@@ -47,6 +53,7 @@ fn fetch_http_documents(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
         .base_url
         .as_ref()
         .context("fetch.base_url missing")?;
+    let base_url = apply_templates(base_url, &substitutions);
 
     if source.config.pagination.enabled
         && source.config.pagination.strategy == PaginationStrategy::NextLink
@@ -64,7 +71,7 @@ fn fetch_http_documents(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
         let end = start + source.config.pagination.max_pages;
         for (index, page) in (start..end).enumerate() {
             let page_url = build_paged_url(
-                base_url,
+                &base_url,
                 &source.config.pagination.page_param,
                 page.to_string().as_str(),
             )?;
@@ -103,18 +110,68 @@ fn fetch_http_documents(source: &LoadedSource) -> Result<Vec<FetchedDocument>> {
         let bytes = fetch_with_retries(
             &client,
             &source.config.fetch.method,
-            base_url,
+            &base_url,
             source.config.fetch.retry_attempts,
             source.config.fetch.retry_backoff_ms,
         )?;
         docs.push(FetchedDocument {
-            source_url: base_url.to_string(),
+            source_url: base_url,
             body: bytes,
             page_index: 0,
         });
     }
 
     Ok(docs)
+}
+
+fn ensure_default_headers(headers: &mut HeaderMap) {
+    insert_if_missing(
+        headers,
+        "accept",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
+    );
+    insert_if_missing(headers, "accept-language", "en-US,en;q=0.9,es-MX;q=0.8");
+    insert_if_missing(headers, "cache-control", "no-cache");
+    insert_if_missing(headers, "pragma", "no-cache");
+    insert_if_missing(headers, "dnt", "1");
+    insert_if_missing(headers, "upgrade-insecure-requests", "1");
+}
+
+fn insert_if_missing(headers: &mut HeaderMap, name: &'static str, value: &'static str) {
+    let header_name = HeaderName::from_static(name);
+    if headers.contains_key(&header_name) {
+        return;
+    }
+    headers.insert(header_name, HeaderValue::from_static(value));
+}
+
+fn template_substitutions(source: &LoadedSource) -> Vec<(String, String)> {
+    let year = current_year_for_source(source);
+    let today = Utc::now().date_naive().to_string();
+    vec![
+        ("{{current_year}}".to_string(), year.to_string()),
+        ("{{year}}".to_string(), year.to_string()),
+        ("{{next_year}}".to_string(), (year + 1).to_string()),
+        ("{{today_ymd}}".to_string(), today),
+    ]
+}
+
+fn apply_templates(input: &str, substitutions: &[(String, String)]) -> String {
+    let mut out = input.to_string();
+    for (pattern, value) in substitutions {
+        out = out.replace(pattern, value);
+    }
+    out
+}
+
+fn current_year_for_source(source: &LoadedSource) -> i32 {
+    if let Some(tz_name) = source.config.source.timezone.as_deref()
+        && let Ok(tz) = tz_name.parse::<Tz>()
+    {
+        return Utc::now().with_timezone(&tz).year();
+    }
+
+    Utc::now().year()
 }
 
 fn fetch_with_retries(

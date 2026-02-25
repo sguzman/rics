@@ -5,6 +5,7 @@ use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use regex::Regex;
+use reqwest::blocking::Client;
 use scraper::{ElementRef, Html, Selector};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
@@ -957,38 +958,146 @@ impl CustomParser for OecdPublicationsParser {
         source: &LoadedSource,
         docs: &[FetchedDocument],
     ) -> Result<Vec<CandidateEvent>> {
+        if docs.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let mut events = Vec::new();
-        let article_selector = Selector::parse("article, li, .search-result, .result-item")
-            .map_err(|_| anyhow!("invalid oecd article selector"))?;
-        let link_selector = Selector::parse("a").map_err(|_| anyhow!("invalid link selector"))?;
+        let current_year = Utc::now().year();
+        let mut seen_ids = HashSet::new();
+        let first_doc_url = Url::parse(&docs[0].source_url)
+            .with_context(|| format!("invalid source url {}", docs[0].source_url))?;
+        let mut query_pairs: BTreeMap<String, String> = first_doc_url
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+        let facet_tags = query_pairs.get("facetTags").cloned().unwrap_or_else(|| {
+            "oecd-languages:en,oecd-search-config-pillars:publications".to_string()
+        });
+        query_pairs.insert(
+            "facetTags".to_string(),
+            ensure_facet_tags(&facet_tags).to_string(),
+        );
 
-        for doc in docs {
-            let html = String::from_utf8_lossy(&doc.body).to_string();
-            let parsed = Html::parse_document(&html);
+        let client = Client::builder()
+            .user_agent(
+                source
+                    .config
+                    .fetch
+                    .user_agent
+                    .clone()
+                    .unwrap_or_else(|| "rics/0.1 (+https://example.invalid)".to_string()),
+            )
+            .build()
+            .context("failed to build OECD API client")?;
 
-            for item in parsed.select(&article_selector) {
-                let Some(link) = item.select(&link_selector).next() else {
+        let page_size = source
+            .config
+            .fetch
+            .headers
+            .get("x-oecd-page-size")
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(50);
+        let max_pages = 200usize;
+        let mut total = usize::MAX;
+        let mut page = 0usize;
+
+        while page < max_pages && page * page_size < total {
+            let mut params = query_pairs.clone();
+            params.insert("siteName".to_string(), "oecd".to_string());
+            params.insert("page".to_string(), page.to_string());
+            params.insert("pageSize".to_string(), page_size.to_string());
+            params
+                .entry("orderBy".to_string())
+                .or_insert_with(|| "mostRecent".to_string());
+            params
+                .entry("minPublicationYear".to_string())
+                .or_insert_with(|| current_year.to_string());
+            params
+                .entry("maxPublicationYear".to_string())
+                .or_insert_with(|| current_year.to_string());
+
+            let response = client
+                .get("https://api.oecd.org/webcms/search/faceted-search")
+                .query(&params)
+                .send()
+                .with_context(|| format!("failed to query OECD API page {page}"))?;
+            if !response.status().is_success() {
+                return Err(anyhow!(
+                    "OECD API returned {} for page {}",
+                    response.status(),
+                    page
+                ));
+            }
+            let payload = response
+                .json::<Value>()
+                .context("failed to decode OECD API JSON")?;
+
+            total = payload.get("total").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+
+            let Some(results) = payload.get("results").and_then(|v| v.as_array()) else {
+                break;
+            };
+
+            for result in results {
+                let title = result
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(ToString::to_string);
+                let Some(title) = title else {
                     continue;
                 };
-                let title = element_attr_or_text(link, None);
-                if title.len() < 5 {
+
+                let url = result
+                    .get("url")
+                    .and_then(|v| v.as_str())
+                    .map(|v| absolutize_url(Some("https://www.oecd.org"), v))
+                    .unwrap_or_default();
+                if url.is_empty() {
                     continue;
                 }
-                let href = link.value().attr("href").unwrap_or_default();
-                let url = absolutize_url(Some(&doc.source_url), href);
-                let date_text = detect_date_in_text(&item.text().collect::<Vec<_>>().join(" "));
-                let time = if let Some(raw_date) = date_text {
-                    parse_event_time(
-                        &raw_date,
-                        None,
-                        &source.config.date,
-                        source.config.source.timezone.as_deref(),
-                    )?
-                } else {
-                    EventTimeSpec::Tbd {
-                        note: Some("date not found".to_string()),
-                    }
+                if !seen_ids.insert(url.clone()) {
+                    continue;
+                }
+
+                let date_text = result
+                    .get("publicationDateTime")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| result.get("startDateTime").and_then(|v| v.as_str()))
+                    .or_else(|| result.get("endDateTime").and_then(|v| v.as_str()));
+                let Some(date_text) = date_text else {
+                    continue;
                 };
+
+                let time = parse_event_time(
+                    date_text,
+                    None,
+                    &source.config.date,
+                    source.config.source.timezone.as_deref(),
+                )?;
+                if !matches_year_or_next(time.year_bucket(), current_year) {
+                    continue;
+                }
+
+                let description = result
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(ToString::to_string);
+
+                let tags = result
+                    .get("tags")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|tag| tag.get("id").and_then(|v| v.as_str()))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    })
+                    .unwrap_or_default();
 
                 events.push(CandidateEvent {
                     source_key: source.config.source.key.clone(),
@@ -996,7 +1105,7 @@ impl CustomParser for OecdPublicationsParser {
                     source_event_id: Some(url.clone()),
                     source_url: Some(url),
                     title,
-                    description: None,
+                    description,
                     time,
                     timezone: source.config.source.timezone.clone(),
                     status: source.config.event.status.clone(),
@@ -1012,16 +1121,52 @@ impl CustomParser for OecdPublicationsParser {
                     jurisdiction: source.config.source.jurisdiction.clone(),
                     country: source.config.source.default_country.clone(),
                     importance: source.config.event.importance,
-                    confidence: Some(0.6),
-                    metadata: BTreeMap::from([(
-                        "custom_parser".to_string(),
-                        self.key().to_string(),
-                    )]),
+                    confidence: Some(0.95),
+                    metadata: BTreeMap::from([
+                        ("custom_parser".to_string(), self.key().to_string()),
+                        ("api_total".to_string(), total.to_string()),
+                        ("api_tags".to_string(), tags),
+                    ]),
                 });
             }
+
+            page += 1;
         }
 
+        info!(
+            source = %source.config.source.key,
+            events = events.len(),
+            "oecd parser extracted dated publication events"
+        );
+
         Ok(events)
+    }
+}
+
+fn ensure_facet_tags(tags: &str) -> String {
+    let mut values = tags
+        .split(',')
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+
+    if !values.iter().any(|v| v == "oecd-languages:en") {
+        values.push("oecd-languages:en".to_string());
+    }
+    if !values
+        .iter()
+        .any(|v| v == "oecd-search-config-pillars:publications")
+    {
+        values.push("oecd-search-config-pillars:publications".to_string());
+    }
+    values.join(",")
+}
+
+fn matches_year_or_next(year: Option<i32>, current_year: i32) -> bool {
+    match year {
+        Some(y) => y == current_year || y == current_year + 1,
+        None => false,
     }
 }
 

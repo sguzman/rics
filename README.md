@@ -66,7 +66,9 @@ See `configs/sources/publishing/oecd_publications.toml`.
 Highlights:
 
 - Pagination enabled via `page` query parameter.
-- Year filtered by URL (`minPublicationYear=2026`, `maxPublicationYear=2026`).
+- Year filtered dynamically by URL template placeholders:
+  - `minPublicationYear={{current_year}}`
+  - `maxPublicationYear={{current_year}}`
 - Custom parser enabled: `oecd_publications_v1`.
 
 ### Example: rough text source

@@ -3,25 +3,25 @@ key = "oecd.publications.en"
 name = "OECD Publications (English)"
 domain = "publishing"
 enabled = true
-timezone = "UTC"
+timezone = "America/Mexico_City"
 jurisdiction = "INTL"
-default_country = "FR"
 
 [fetch]
 mode = "http"
 method = "GET"
-base_url = "https://www.oecd.org/en/search/publications.html?orderBy=mostRecent&facetTags=oecd-languages%3Aen&page=0&minPublicationYear=2026&maxPublicationYear=2026"
+base_url = "https://www.oecd.org/en/search/publications.html?orderBy=mostRecent&facetTags=oecd-languages%3Aen&page=0&minPublicationYear={{current_year}}&maxPublicationYear={{current_year}}"
 timeout_secs = 30
 retry_attempts = 3
 retry_backoff_ms = 600
 user_agent = "rics/0.1 (+https://example.invalid)"
+headers = { accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", accept-language = "es-MX,es;q=0.9,en-US;q=0.8,en;q=0.7", referer = "https://www.oecd.org/", cache-control = "no-cache", pragma = "no-cache" }
 
 [pagination]
 enabled = true
 strategy = "query_param"
 page_param = "page"
 start_page = 0
-max_pages = 30
+max_pages = 1
 stop_when_no_results = true
 
 [extract]
@@ -30,7 +30,7 @@ format = "html"
 [date]
 primary = "date"
 formats = ["%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%B %Y", "%Y"]
-assume_timezone = "UTC"
+assume_timezone = "America/Mexico_City"
 allow_month_only = true
 allow_year_only = true
 
