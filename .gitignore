@@ -1,2 +1,4 @@
 /target
 tmp
+data/out
+data/state

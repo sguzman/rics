@@ -1,0 +1,36 @@
+[source]
+key = "adhoc.rough.text"
+name = "Ad Hoc Rough Text"
+domain = "custom"
+enabled = true
+timezone = "UTC"
+jurisdiction = "INTL"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../data/sources/rough_events.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "ad_hoc"
+subtype = "manual"
+status = "scheduled"
+categories = ["ad-hoc", "manual"]
+importance = 30
+
+[custom]
+enabled = true
+parser = "rough_text_lines_v1"

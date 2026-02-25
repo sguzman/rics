@@ -1,0 +1,50 @@
+[source]
+key = "test.oecd.fixture"
+name = "Test OECD Fixture"
+domain = "publishing"
+enabled = true
+timezone = "UTC"
+jurisdiction = "INTL"
+default_country = "FR"
+
+[fetch]
+mode = "file"
+file_path = "../data/oecd_fixture.html"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "html"
+root_selector = "article.pub-card"
+
+[map.title]
+from = "css:a.title"
+trim = true
+
+[map.url]
+from = "css:a.title@href"
+trim = true
+absolutize = true
+
+[map.date]
+from = "css:.pub-date"
+trim = true
+
+[map.description]
+from = "css:.summary"
+trim = true
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "release"
+subtype = "publication"
+status = "scheduled"
+categories = ["publishing", "oecd", "fixture"]
+importance = 60

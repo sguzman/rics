@@ -1,0 +1,4 @@
+# date | title | url
+2026-03-15 | NCAA Selection Sunday | https://www.ncaa.com/
+2026-07-17 | FOMC Minutes Release | https://www.federalreserve.gov/
+2027-02-14 | Draft Placeholder Event | https://example.invalid/placeholder
