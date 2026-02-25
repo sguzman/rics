@@ -327,11 +327,10 @@ fn rebuild_source_calendars(
     changed_years: Option<BTreeSet<i32>>,
 ) -> Result<()> {
     let mut by_year: HashMap<i32, Vec<&EventRecord>> = HashMap::new();
-    for event in state
-        .events
-        .values()
-        .filter(|event| event.source_key == source.config.source.key)
-    {
+    for event in state.events.values().filter(|event| {
+        event.source_key == source.config.source.key
+            && !event.status.eq_ignore_ascii_case("cancelled")
+    }) {
         if let Some(year) = event.year_bucket() {
             by_year.entry(year).or_default().push(event);
         }

@@ -1040,6 +1040,23 @@ impl CustomParser for OecdPublicationsParser {
             };
 
             for result in results {
+                let tag_ids = result
+                    .get("tags")
+                    .and_then(Value::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|tag| tag.get("id").and_then(Value::as_str))
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let is_publication = tag_ids
+                    .iter()
+                    .any(|id| id.starts_with("oecd-content-types:publications/"));
+                if !is_publication {
+                    continue;
+                }
+
                 let title = result
                     .get("title")
                     .and_then(|v| v.as_str())
@@ -1088,16 +1105,7 @@ impl CustomParser for OecdPublicationsParser {
                     .filter(|v| !v.is_empty())
                     .map(ToString::to_string);
 
-                let tags = result
-                    .get("tags")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|tag| tag.get("id").and_then(|v| v.as_str()))
-                            .collect::<Vec<_>>()
-                            .join(",")
-                    })
-                    .unwrap_or_default();
+                let tags = tag_ids.join(",");
 
                 events.push(CandidateEvent {
                     source_key: source.config.source.key.clone(),
