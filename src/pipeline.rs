@@ -348,8 +348,19 @@ fn rebuild_source_calendars(
         .join("sources")
         .join(source.config.sanitized_source_dir_name());
     let file_prefix = source.config.sanitized_source_dir_name();
+    let mirror_source_dir = source.config.publish.mirror_dir.as_ref().map(|base| {
+        if source.config.publish.mirror_source_subdir {
+            base.join(&file_prefix)
+        } else {
+            base.to_path_buf()
+        }
+    });
     std::fs::create_dir_all(&source_dir)
         .with_context(|| format!("failed to create output dir {}", source_dir.display()))?;
+    if let Some(mirror_dir) = &mirror_source_dir {
+        std::fs::create_dir_all(mirror_dir)
+            .with_context(|| format!("failed to create mirror dir {}", mirror_dir.display()))?;
+    }
 
     for (year, mut events) in by_year {
         events.sort_by(|a, b| {
@@ -359,6 +370,21 @@ fn rebuild_source_calendars(
         });
         let path = source_dir.join(ics_filename(&file_prefix, year));
         write_source_year_calendar(&source.config, year, &events, &path)?;
+        if let Some(mirror_dir) = &mirror_source_dir {
+            let mirror_path = mirror_dir.join(ics_filename(&file_prefix, year));
+            std::fs::copy(&path, &mirror_path).with_context(|| {
+                format!(
+                    "failed to publish mirrored calendar {}",
+                    mirror_path.display()
+                )
+            })?;
+            info!(
+                source = %source.config.source.key,
+                year,
+                mirror = %mirror_path.display(),
+                "calendar file mirrored"
+            );
+        }
         info!(
             source = %source.config.source.key,
             year,
@@ -371,6 +397,17 @@ fn rebuild_source_calendars(
     if source_dir.exists() {
         cleanup_stale_year_files(
             &source_dir,
+            state,
+            &source.config.source.key,
+            &file_prefix,
+            year_filter,
+        )?;
+    }
+    if let Some(mirror_dir) = &mirror_source_dir
+        && mirror_dir.exists()
+    {
+        cleanup_stale_year_files(
+            mirror_dir,
             state,
             &source.config.source.key,
             &file_prefix,

@@ -29,6 +29,8 @@ pub struct SourceConfig {
     pub pdf: PdfConfig,
     #[serde(default)]
     pub custom: CustomConfig,
+    #[serde(default)]
+    pub publish: PublishConfig,
 }
 
 impl SourceConfig {
@@ -320,6 +322,14 @@ pub struct CustomConfig {
     pub parser: Option<String>,
     #[serde(default)]
     pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PublishConfig {
+    #[serde(default)]
+    pub mirror_dir: Option<PathBuf>,
+    #[serde(default = "default_true")]
+    pub mirror_source_subdir: bool,
 }
 
 pub fn load_sources_from_dir(config_dir: &Path) -> Result<Vec<LoadedSource>> {

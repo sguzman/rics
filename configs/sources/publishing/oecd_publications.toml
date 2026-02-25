@@ -44,3 +44,7 @@ importance = 55
 [custom]
 enabled = true
 parser = "oecd_publications_v1"
+
+[publish]
+mirror_dir = "/home/admin/Code/calendars/rics"
+mirror_source_subdir = true

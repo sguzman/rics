@@ -15,6 +15,9 @@
 - Maintains stable UID identity and revision `SEQUENCE` updates.
 - Buckets output calendars by event year:
   - `data/out/sources/<source-key>/<source-key>-<year>.ics`
+- Optional mirror publish target per source:
+  - `[publish] mirror_dir = "/home/admin/Code/calendars/rics"`
+  - Mirrors rebuilt files to `<mirror_dir>/<source-key>/<source-key>-<year>.ics` when enabled.
 - Marks missing future events as `cancelled` on subsequent syncs.
 
 ## Architecture

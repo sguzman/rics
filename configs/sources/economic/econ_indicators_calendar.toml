@@ -35,3 +35,7 @@ importance = 70
 [custom]
 enabled = true
 parser = "econ_indicators_calendar_v1"
+
+[publish]
+mirror_dir = "/home/admin/Code/calendars/rics"
+mirror_source_subdir = true
