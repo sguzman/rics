@@ -31,6 +31,14 @@ pub struct BuildOptions {
 }
 
 #[derive(Debug, Clone)]
+pub struct PublishOptions {
+    pub config_dir: PathBuf,
+    pub out_dir: PathBuf,
+    pub source: Option<String>,
+    pub year: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ValidateOptions {
     pub config_dir: Option<PathBuf>,
     pub source_file: Option<PathBuf>,
@@ -111,6 +119,82 @@ pub fn build_calendars(options: &BuildOptions) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn publish_existing_calendars(options: &PublishOptions) -> Result<usize> {
+    let mut sources = load_sources_from_dir(&options.config_dir)?;
+    if let Some(filter) = &options.source {
+        sources.retain(|s| s.config.source.key == *filter);
+    }
+    if sources.is_empty() {
+        bail!("no matching source configurations found");
+    }
+
+    let mut published = 0usize;
+
+    for source in sources {
+        let Some(mirror_base) = source.config.publish.mirror_dir.as_ref() else {
+            info!(
+                source = %source.config.source.key,
+                "publish skipped; no [publish].mirror_dir configured"
+            );
+            continue;
+        };
+
+        let file_prefix = source.config.sanitized_source_dir_name();
+        let source_out_dir = options.out_dir.join("sources").join(&file_prefix);
+        if !source_out_dir.exists() {
+            info!(
+                source = %source.config.source.key,
+                dir = %source_out_dir.display(),
+                "publish skipped; no local output directory"
+            );
+            continue;
+        }
+
+        let mirror_dir = if source.config.publish.mirror_source_subdir {
+            mirror_base.join(&file_prefix)
+        } else {
+            mirror_base.to_path_buf()
+        };
+        std::fs::create_dir_all(&mirror_dir)
+            .with_context(|| format!("failed to create mirror dir {}", mirror_dir.display()))?;
+
+        for entry in std::fs::read_dir(&source_out_dir)? {
+            let entry = entry?;
+            let src_path = entry.path();
+            if src_path.extension().and_then(|s| s.to_str()) != Some("ics") {
+                continue;
+            }
+            let Some(file_name) = src_path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+
+            if let Some(filter_year) = options.year
+                && extract_year_from_any_ics_filename(file_name, &file_prefix) != Some(filter_year)
+            {
+                continue;
+            }
+
+            let dst_path = mirror_dir.join(file_name);
+            std::fs::copy(&src_path, &dst_path).with_context(|| {
+                format!(
+                    "failed to publish {} to {}",
+                    src_path.display(),
+                    dst_path.display()
+                )
+            })?;
+            published += 1;
+            info!(
+                source = %source.config.source.key,
+                src = %src_path.display(),
+                dst = %dst_path.display(),
+                "published existing calendar file"
+            );
+        }
+    }
+
+    Ok(published)
 }
 
 pub fn validate_configs(options: &ValidateOptions) -> Result<Vec<String>> {
@@ -486,6 +570,14 @@ fn is_legacy_year_only_filename(file_name: &str) -> bool {
         .strip_suffix(".ics")
         .and_then(|stem| stem.parse::<i32>().ok())
         .is_some()
+}
+
+fn extract_year_from_any_ics_filename(file_name: &str, file_prefix: &str) -> Option<i32> {
+    parse_year_from_filename(file_name, file_prefix).or_else(|| {
+        file_name
+            .strip_suffix(".ics")
+            .and_then(|stem| stem.parse::<i32>().ok())
+    })
 }
 
 fn event_sort_key(event: &EventRecord) -> String {

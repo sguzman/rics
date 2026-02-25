@@ -52,6 +52,13 @@ cargo run -- build --year 2026
 cargo run -- build --source oecd.publications.en --year 2026
 ```
 
+4. Publish already-generated ICS files to mirror directories (no rebuild):
+
+```bash
+cargo run -- publish
+cargo run -- publish --source oecd.publications.en --year 2026
+```
+
 4. Run the harness (double-sync stability measurement):
 
 ```bash

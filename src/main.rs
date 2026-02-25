@@ -2,7 +2,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rics::harness::{HarnessOptions, run_harness};
 use rics::pipeline::{
-    BuildOptions, SyncOptions, ValidateOptions, build_calendars, sync_sources, validate_configs,
+    BuildOptions, PublishOptions, SyncOptions, ValidateOptions, build_calendars,
+    publish_existing_calendars, sync_sources, validate_configs,
 };
 use std::path::PathBuf;
 use tracing::info;
@@ -33,6 +34,12 @@ enum Commands {
         dry_run: bool,
     },
     Build {
+        #[arg(long)]
+        source: Option<String>,
+        #[arg(long)]
+        year: Option<i32>,
+    },
+    Publish {
         #[arg(long)]
         source: Option<String>,
         #[arg(long)]
@@ -81,6 +88,15 @@ fn main() -> Result<()> {
                 year,
             })?;
             info!("build complete");
+        }
+        Commands::Publish { source, year } => {
+            let count = publish_existing_calendars(&PublishOptions {
+                config_dir: cli.config_dir,
+                out_dir: cli.out_dir,
+                source,
+                year,
+            })?;
+            info!(files = count, "publish complete");
         }
         Commands::Validate { source_file } => {
             let messages = validate_configs(&ValidateOptions {
