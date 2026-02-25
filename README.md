@@ -14,7 +14,7 @@
 - Persists canonical events in `data/state/events.json`.
 - Maintains stable UID identity and revision `SEQUENCE` updates.
 - Buckets output calendars by event year:
-  - `data/out/sources/<source-key>/<year>.ics`
+  - `data/out/sources/<source-key>/<source-key>-<year>.ics`
 - Marks missing future events as `cancelled` on subsequent syncs.
 
 ## Architecture

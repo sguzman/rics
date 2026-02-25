@@ -24,12 +24,12 @@ fn sync_builds_yearly_ics_files() -> Result<()> {
         .out_dir
         .join("sources")
         .join("test-oecd-fixture")
-        .join("2026.ics");
+        .join("test-oecd-fixture-2026.ics");
     let y2027 = env
         .out_dir
         .join("sources")
         .join("test-oecd-fixture")
-        .join("2027.ics");
+        .join("test-oecd-fixture-2027.ics");
 
     assert!(y2026.exists());
     assert!(y2027.exists());
@@ -89,7 +89,7 @@ fn sync_updates_existing_future_events() -> Result<()> {
         env.out_dir
             .join("sources")
             .join("test-oecd-fixture")
-            .join("2026.ics"),
+            .join("test-oecd-fixture-2026.ics"),
     )?;
     assert!(content.contains("SEQUENCE:1"));
 

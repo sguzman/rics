@@ -11,7 +11,7 @@
 - [x] HTTP/file/inline source fetcher with retry and pagination support.
 - [x] Declarative parsing engine for HTML, JSON, text, and PDF text.
 - [x] Merge logic with stable UIDs and revision `SEQUENCE` updates.
-- [x] Year-bucketed source calendar export (`<year>.ics`).
+- [x] Year-bucketed source calendar export (`<source-key>-<year>.ics`).
 - [x] Tracing-based logging through the pipeline.
 
 ## Phase 2: Quality and Operability

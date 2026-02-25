@@ -347,6 +347,7 @@ fn rebuild_source_calendars(
     let source_dir = out_dir
         .join("sources")
         .join(source.config.sanitized_source_dir_name());
+    let file_prefix = source.config.sanitized_source_dir_name();
     std::fs::create_dir_all(&source_dir)
         .with_context(|| format!("failed to create output dir {}", source_dir.display()))?;
 
@@ -356,7 +357,7 @@ fn rebuild_source_calendars(
             let b_key = event_sort_key(b);
             a_key.cmp(&b_key)
         });
-        let path = source_dir.join(format!("{year}.ics"));
+        let path = source_dir.join(ics_filename(&file_prefix, year));
         write_source_year_calendar(&source.config, year, &events, &path)?;
         info!(
             source = %source.config.source.key,
@@ -368,7 +369,13 @@ fn rebuild_source_calendars(
     }
 
     if source_dir.exists() {
-        cleanup_stale_year_files(&source_dir, state, &source.config.source.key, year_filter)?;
+        cleanup_stale_year_files(
+            &source_dir,
+            state,
+            &source.config.source.key,
+            &file_prefix,
+            year_filter,
+        )?;
     }
 
     Ok(())
@@ -378,6 +385,7 @@ fn cleanup_stale_year_files(
     source_dir: &Path,
     state: &State,
     source_key: &str,
+    file_prefix: &str,
     year_filter: Option<i32>,
 ) -> Result<()> {
     let mut existing_years = HashSet::new();
@@ -401,10 +409,17 @@ fn cleanup_stale_year_files(
         if path.extension().and_then(|v| v.to_str()) != Some("ics") {
             continue;
         }
-        let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) else {
+        let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        let Ok(file_year) = file_stem.parse::<i32>() else {
+        if is_legacy_year_only_filename(file_name) {
+            std::fs::remove_file(&path)
+                .with_context(|| format!("failed to remove legacy file {}", path.display()))?;
+            warn!(file = %path.display(), "removed legacy calendar file");
+            continue;
+        }
+
+        let Some(file_year) = parse_year_from_filename(file_name, file_prefix) else {
             continue;
         };
 
@@ -416,6 +431,24 @@ fn cleanup_stale_year_files(
     }
 
     Ok(())
+}
+
+fn ics_filename(file_prefix: &str, year: i32) -> String {
+    format!("{file_prefix}-{year}.ics")
+}
+
+fn parse_year_from_filename(file_name: &str, file_prefix: &str) -> Option<i32> {
+    let prefixed = format!("{file_prefix}-");
+    let stem = file_name.strip_suffix(".ics")?;
+    let year = stem.strip_prefix(&prefixed)?;
+    year.parse::<i32>().ok()
+}
+
+fn is_legacy_year_only_filename(file_name: &str) -> bool {
+    file_name
+        .strip_suffix(".ics")
+        .and_then(|stem| stem.parse::<i32>().ok())
+        .is_some()
 }
 
 fn event_sort_key(event: &EventRecord) -> String {
