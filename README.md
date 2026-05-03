@@ -1,139 +1,55 @@
 # rics
 
-`rics` is a Rust calendar ETL and ICS generator. It ingests source-specific TOML definitions, extracts event data from web pages, JSON feeds, PDFs, or rough text, normalizes events, updates prior future events, and emits year-bucketed `.ics` files.
+`rics` is a Rust calendar ETL and ICS generator that ingests source-specific definitions and emits normalized calendar files.
 
-## What It Does
+## Intent
 
-- Loads sources from `configs/sources/**/*.toml`.
-- Fetches each source via `http`, `file`, or `inline` mode.
-- Parses records with declarative field mapping:
-  - HTML (`css:` selectors)
-  - JSON (`json:` paths)
-  - PDF text / rough text (`regex:` and text splitting)
-- Supports custom Rust parsers by key (`[custom] parser = "..."`).
-- Persists canonical events in `data/state/events.json`.
-- Maintains stable UID identity and revision `SEQUENCE` updates.
-- Buckets output calendars by event year:
-  - `data/out/sources/<source-key>/<source-key>-<year>.ics`
-- Optional mirror publish target per source:
-  - `[publish] mirror_dir = "/home/admin/Code/calendars/rics"`
-  - Mirrors rebuilt files to `<mirror_dir>/<source-key>/<source-key>-<year>.ics` when enabled.
-- Marks missing future events as `cancelled` on subsequent syncs.
+Turn messy event sources such as pages, feeds, PDFs, or rough text into maintainable calendar artifacts without hand-editing `.ics` output.
 
-## Architecture
+## Ambition
 
-- `src/config.rs`: Source TOML schema + config loading/validation.
-- `src/fetch.rs`: HTTP/file/inline document fetching + pagination.
-- `src/parser.rs`: Declarative parser engine + custom parser registry.
-- `src/pipeline.rs`: Sync/build orchestration, merge/update logic.
-- `src/store.rs`: Persistent event state.
-- `src/ics.rs`: RFC-style ICS output with escaping/folding and rich `X-RICS-*` metadata.
-- `src/harness.rs`: Repeatable harness for success metrics.
+The config-driven source model and update semantics point toward a reusable calendar-ingestion system that can track recurring sources over time rather than a one-shot converter.
 
-## Quick Start
+## Current Status
 
-1. Validate source configs:
+The project already has config, fetch, parser, pipeline, store, and harness modules along with tests and roadmap material. It looks like a functioning ETL pipeline.
 
-```bash
-cargo run -- validate --source-file configs/sources/publishing/oecd_publications.toml
-```
+## Core Capabilities Or Focus Areas
 
-2. Sync all configured sources and generate/update ICS output:
+- Source-specific event extraction.
+- Normalization into calendar/event models.
+- ICS generation and update semantics for future events.
+- Config-driven source definitions.
+- Harness/test support for parsing and pipeline behavior.
+
+## Project Layout
+
+- `configs/`: source or runtime configuration definitions.
+- `data/`: sample data, working data, or local development artifacts.
+- `src/`: Rust source for the main crate or application entrypoint.
+- `tests/`: automated tests, fixtures, or parity scenarios.
+- `Cargo.toml`: crate or workspace manifest and the first place to check for package structure.
+
+## Setup And Requirements
+
+- Rust toolchain.
+- Defined source configs in `configs/` or equivalent.
+- Input sources reachable from the local environment.
+
+## Build / Run / Test Commands
 
 ```bash
-cargo run -- sync
-```
-
-3. Rebuild ICS files from stored state only:
-
-```bash
-cargo run -- build
-cargo run -- build --year 2026
-cargo run -- build --source oecd.publications.en --year 2026
-```
-
-4. Publish already-generated ICS files to mirror directories (no rebuild):
-
-```bash
-cargo run -- publish
-cargo run -- publish --source oecd.publications.en --year 2026
-```
-
-4. Run the harness (double-sync stability measurement):
-
-```bash
-cargo run -- --config-dir tests/fixtures/sources --state-path /tmp/rics-state.json --out-dir /tmp/rics-out harness
-```
-
-## Source Configuration
-
-Each source is defined in its own TOML file.
-
-### Example: OECD publishing source
-
-See `configs/sources/publishing/oecd_publications.toml`.
-
-Highlights:
-
-- Pagination enabled via `page` query parameter.
-- Year filtered dynamically by URL template placeholders:
-  - `minPublicationYear={{current_year}}`
-  - `maxPublicationYear={{current_year}}`
-- Custom parser enabled: `oecd_publications_v1`.
-
-### Example: rough text source
-
-See `configs/sources/ad_hoc/rough_text.toml` and `data/sources/rough_events.txt`.
-
-Input format (one event per line):
-
-```text
-YYYY-MM-DD | Event Title | https://event-url
-```
-
-### Declarative mapping examples
-
-- `from = "css:a.title@href"`
-- `from = "json:$.items[*].title"`
-- `from = "regex:(?m)^Date:\s*(.+)$"`
-- `const = "Some static value"`
-
-## Update and Identity Semantics
-
-- UID is stable and deterministic:
-  - prefers `source_event_id`
-  - falls back to source URL
-  - otherwise uses source key + title + year bucket hash
-- Revision changes bump `SEQUENCE`.
-- Events that disappear from a source and are still in the future are updated to `STATUS:CANCELLED`.
-
-## Logging
-
-`tracing` is enabled across fetch/parse/merge/export. Configure with:
-
-```bash
-RUST_LOG=debug cargo run -- sync
-```
-
-## Test Harness
-
-- Integration tests: `tests/harness.rs`
-- Fixture source/data: `tests/fixtures/`
-
-Run:
-
-```bash
+cargo build
 cargo test
+cargo run -- --help
 ```
 
-The harness verifies:
+## Notes, Limitations, Or Known Gaps
 
-- year-bucketed ICS output generation
-- update behavior with sequence increments
-- second sync stability (no unexpected insert/update drift)
+- Source adapters are the core extensibility point, so source drift is an expected maintenance burden.
+- Calendar correctness often depends on normalization policy as much as parsing.
 
-## Notes
+## Next Steps Or Roadmap Hints
 
-- This project stores canonical event state first, then exports ICS.
-- ICS output includes rich metadata fields: `X-RICS-*`.
-- PDF support currently focuses on text extraction; complex table layouts may require custom parsers.
+- Keep source configurations and fixtures close together so new adapters stay testable.
+- Clarify identity/update rules further as more event sources are added.
