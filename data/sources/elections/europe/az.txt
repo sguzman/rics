@@ -1,0 +1,2 @@
+# Azerbaijan
+2029 | Parliamentary election | subtype=parliamentary | office=milli_majlis | election_kind=parliamentary | source_class=official | source_event_id=az-2029-parliamentary | source_url=https://meclis.gov.az/cat-rehber.php?cat=111&lang=en | official_url=https://meclis.gov.az/news-az.php?id=3&lang=en | description=The seventh convocation of Azerbaijan's Milli Majlis was formed following the elections held on 1 September 2024, and each parliamentary convocation has a five-year term. The next regular parliamentary election therefore falls in 2029.

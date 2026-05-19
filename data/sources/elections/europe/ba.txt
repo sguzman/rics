@@ -1,0 +1,2 @@
+# Bosnia and Herzegovina
+2026-10-04 | General election | subtype=general | office=state_institutions | election_kind=general | source_class=official | source_event_id=ba-2026-general | source_url=https://www.izbori.ba/Default.aspx?Lang=3 | official_url=https://www.izbori.ba/?Lang=6 | description=The Central Election Commission states that the 2026 General Elections in Bosnia and Herzegovina will be held on Sunday, 4 October 2026.

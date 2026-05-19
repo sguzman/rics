@@ -1,0 +1,2 @@
+# Belarus
+2029 | Parliamentary election | subtype=parliamentary | office=house_of_representatives | election_kind=parliamentary | source_class=aggregator | source_event_id=by-2029-parliamentary | source_url=https://data.ipu.org/parliament/BY/BY-LC01/ | official_url=https://pravo.by/document/?guid=3871&p0=V19402875 | description=Belarus held House of Representatives elections on 25 February 2024. The current parliamentary term is five years, so the next regular parliamentary election falls in 2029 unless the chamber is dissolved earlier.

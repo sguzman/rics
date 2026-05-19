@@ -1,0 +1,2 @@
+# Russia
+2026 | State Duma election | subtype=parliamentary | office=state_duma | election_kind=parliamentary | source_class=official | source_event_id=ru-2026-state-duma | source_url=https://duma.gov.ru/en/duma/about/history/information/ | official_url=https://www.constitution.ru/en/10003000-06.htm | description=Russia's State Duma of the eighth convocation was elected on 17-19 September 2021 and serves until 2026. The Constitution provides a five-year term, so the next regular State Duma election falls in 2026.

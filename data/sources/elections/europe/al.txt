@@ -1,0 +1,2 @@
+# Albania
+2029 | Parliamentary election | subtype=parliamentary | office=kuvend | election_kind=parliamentary | source_class=official | source_event_id=al-2029-parliamentary | source_url=https://arkiva.kqz.gov.al/parliamentary-elections/?lang=en | official_url=https://kqz.gov.al/lajme/zgjedhjet-2025-kshz-miraton-sasine-e-fleteve-te-votimit-per-votimin-brenda-vendit | description=The Albanian Parliament is elected for a four-year term. Following the parliamentary election held on 11 May 2025, the next regular parliamentary election falls in 2029.

@@ -1,0 +1,2 @@
+# Andorra
+2027 | General election | subtype=parliamentary | office=consell_general | election_kind=general | source_class=official | source_event_id=ad-2027-general | source_url=https://www.consellgeneral.ad/en/the-general-council/xxxx/general-elections | official_url=https://www.consellgeneral.ad/ca/el-consell-dandorra/constitucio-i-reglament/la-constitucio-del-principat-d-andorra | description=Andorra's General Council is elected for a four-year term. After the 2023 general election, the next regular election falls in 2027.

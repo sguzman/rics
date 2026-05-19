@@ -1,0 +1,2 @@
+# Liechtenstein
+2029 | Parliamentary election | subtype=parliamentary | office=landtag | election_kind=parliamentary | source_class=official | source_event_id=li-2029-parliamentary | source_url=https://www.landtag.li/parliamentary-elections | official_url=https://www.landtag.li/parliamentary-elections | description=Liechtenstein's Landtag is elected for four years, and the official parliament site states that the next parliamentary elections are held in 2029.

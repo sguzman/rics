@@ -9,7 +9,7 @@ default_country = "SM"
 
 [fetch]
 mode = "file"
-file_path = "../../../../data/sources/elections/europe/_empty.txt"
+file_path = "../../../../data/sources/elections/europe/sm.txt"
 timeout_secs = 10
 retry_attempts = 1
 retry_backoff_ms = 10

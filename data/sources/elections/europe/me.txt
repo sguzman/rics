@@ -1,0 +1,2 @@
+# Montenegro
+2027-06-13 | Parliamentary election | subtype=parliamentary | office=parliament | election_kind=parliamentary | source_class=official | source_event_id=me-2027-parliamentary | source_url=https://www.gov.me/en/article/becic-single-day-elections-prevent-electoral-tourism | official_url=https://www.gov.me/clanak/becic-izbori-u-jednom-danu-sprecavaju-izborni-turizam | description=The Government of Montenegro announced that the regular parliamentary elections will be held on 13 June 2027 together with consolidated local elections.

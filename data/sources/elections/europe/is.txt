@@ -1,0 +1,2 @@
+# Iceland
+2028 | Parliamentary election | subtype=parliamentary | office=althingi | election_kind=parliamentary | source_class=official | source_event_id=is-2028-parliamentary | source_url=https://www.althingi.is/english/members-of-parliament/political-parties/%26quot | official_url=https://www.althingi.is/pdf/ConstitutionJSAY7.pdf | description=Althingi has 63 members elected for a four-year term. After the general election held in November 2024, the next regular parliamentary election falls in 2028.
