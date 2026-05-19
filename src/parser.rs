@@ -58,6 +58,7 @@ fn run_custom_parser(
         "oecd_publications_v1" => Box::new(OecdPublicationsParser),
         "rough_text_lines_v1" => Box::new(RoughTextLinesParser),
         "econ_indicators_calendar_v1" => Box::new(EconIndicatorsCalendarParser),
+        "europe_elections_feed_v1" => Box::new(EuropeElectionsFeedParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -1434,6 +1435,155 @@ impl CustomParser for EconIndicatorsCalendarParser {
                     country: Some(country),
                     importance: source.config.event.importance,
                     confidence: Some(0.9),
+                    metadata,
+                });
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+struct EuropeElectionsFeedParser;
+
+impl CustomParser for EuropeElectionsFeedParser {
+    fn key(&self) -> &'static str {
+        "europe_elections_feed_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let mut events = Vec::new();
+
+        for doc in docs {
+            let payload = String::from_utf8_lossy(&doc.body);
+            for raw_line in payload.lines() {
+                let line = raw_line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                let parts = line
+                    .split('|')
+                    .map(str::trim)
+                    .filter(|part| !part.is_empty())
+                    .collect::<Vec<_>>();
+                if parts.len() < 2 {
+                    continue;
+                }
+
+                let start_raw = parts[0];
+                let mut title = parts[1].to_string();
+                if !title
+                    .to_ascii_lowercase()
+                    .starts_with(&source.config.source.name.to_ascii_lowercase())
+                {
+                    title = format!("{}: {title}", source.config.source.name);
+                }
+
+                let mut fields = BTreeMap::new();
+                for part in &parts[2..] {
+                    let Some((key, value)) = part.split_once('=') else {
+                        continue;
+                    };
+                    fields.insert(key.trim().to_string(), value.trim().to_string());
+                }
+
+                let time = if start_raw.eq_ignore_ascii_case("tbd") {
+                    EventTimeSpec::Tbd {
+                        note: fields
+                            .get("tbd")
+                            .cloned()
+                            .or_else(|| Some("Date not yet confirmed".to_string())),
+                    }
+                } else {
+                    parse_event_time(
+                        start_raw,
+                        fields.get("end").map(String::as_str),
+                        &source.config.date,
+                        source.config.source.timezone.as_deref(),
+                    )?
+                };
+
+                let subtype = fields
+                    .get("subtype")
+                    .cloned()
+                    .or_else(|| source.config.event.subtype.clone());
+                let source_url = fields
+                    .get("source_url")
+                    .cloned()
+                    .or_else(|| fields.get("official_url").cloned())
+                    .or_else(|| Some(doc.source_url.clone()));
+                let source_event_id = fields.get("source_event_id").cloned().or_else(|| {
+                    Some(format!(
+                        "{}|{}|{}",
+                        source.config.source.key, start_raw, title
+                    ))
+                });
+                let status = fields
+                    .get("status")
+                    .cloned()
+                    .unwrap_or_else(|| source.config.event.status.clone());
+                let confidence = fields
+                    .get("confidence")
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .or(Some(0.95));
+                let importance = fields
+                    .get("importance")
+                    .and_then(|v| v.parse::<u8>().ok())
+                    .or(source.config.event.importance);
+                let description = fields.get("description").cloned();
+
+                let mut metadata = BTreeMap::new();
+                for (key, value) in &fields {
+                    if ["end", "status", "subtype", "importance", "confidence", "description"]
+                        .contains(&key.as_str())
+                    {
+                        continue;
+                    }
+                    metadata.insert(key.clone(), value.clone());
+                }
+                metadata.insert("custom_parser".to_string(), self.key().to_string());
+                metadata.entry("country".to_string()).or_insert_with(|| {
+                    source
+                        .config
+                        .source
+                        .default_country
+                        .clone()
+                        .unwrap_or_default()
+                });
+                metadata
+                    .entry("source_class".to_string())
+                    .or_insert_with(|| "curated".to_string());
+
+                let mut categories = source.config.event.categories.clone();
+                categories.push("elections".to_string());
+                if let Some(country) = source.config.source.default_country.as_deref() {
+                    categories.push(country.to_ascii_lowercase());
+                }
+                categories.sort();
+                categories.dedup();
+
+                events.push(CandidateEvent {
+                    source_key: source.config.source.key.clone(),
+                    source_name: source.config.source.name.clone(),
+                    source_event_id,
+                    source_url,
+                    title,
+                    description,
+                    time,
+                    timezone: source.config.source.timezone.clone(),
+                    status,
+                    event_type: source.config.event.event_type.clone(),
+                    subtype,
+                    categories,
+                    jurisdiction: source.config.source.jurisdiction.clone(),
+                    country: source.config.source.default_country.clone(),
+                    importance,
+                    confidence,
                     metadata,
                 });
             }

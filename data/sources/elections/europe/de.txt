@@ -1,0 +1,2 @@
+# Germany
+2029 | Federal election | subtype=parliamentary | office=bundestag | election_kind=parliamentary | source_class=aggregator | source_event_id=de-2029-federal | source_url=https://europeelects.eu/germany/ | official_url=https://www.bundeswahlleiterin.de/en/

@@ -1,0 +1,2 @@
+# France
+2027 | Presidential election | subtype=presidential | office=president | election_kind=presidential | source_class=aggregator | source_event_id=fr-2027-presidential | source_url=https://europeelects.eu/france/ | official_url=https://www.elections.interieur.gouv.fr/

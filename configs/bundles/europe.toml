@@ -1,0 +1,9 @@
+[bundle]
+key = "europe.elections"
+name = "European Elections"
+
+[include]
+source_patterns = ["elections.*"]
+
+[publish]
+file_name_template = "europe-elections-{{year}}.ics"

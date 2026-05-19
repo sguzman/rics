@@ -1,0 +1,2 @@
+# Switzerland
+2026-06-14 | Federal popular vote | subtype=referendum | office=federal_popular_vote | election_kind=referendum | source_class=official | source_event_id=ch-2026-popular-vote-2026-06-14 | source_url=https://www.admin.ch/en/upcoming-federal-popular-votes | official_url=https://www.admin.ch/en/upcoming-federal-popular-votes

@@ -1,0 +1,38 @@
+[source]
+key = "elections.ua"
+name = "Ukraine"
+domain = "elections"
+enabled = true
+timezone = "UTC"
+jurisdiction = "UA"
+default_country = "UA"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/elections/europe/_empty.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "election"
+status = "scheduled"
+categories = ["elections", "europe"]
+importance = 80
+
+[custom]
+enabled = true
+parser = "europe_elections_feed_v1"
+
+[publish]
+file_name_template = "elections-{{country}}-{{year}}.ics"

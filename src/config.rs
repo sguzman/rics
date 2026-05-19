@@ -10,6 +10,12 @@ pub struct LoadedSource {
     pub config: SourceConfig,
 }
 
+#[derive(Debug, Clone)]
+pub struct LoadedBundle {
+    pub path: PathBuf,
+    pub config: BundleConfig,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct SourceConfig {
     pub source: SourceMeta,
@@ -73,6 +79,46 @@ impl SourceConfig {
     pub fn sanitized_source_dir_name(&self) -> String {
         sanitize_for_path(&self.source.key)
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BundleConfig {
+    pub bundle: BundleMeta,
+    #[serde(default)]
+    pub include: BundleIncludeConfig,
+    #[serde(default)]
+    pub publish: PublishConfig,
+}
+
+impl BundleConfig {
+    pub fn validate(&self) -> Result<()> {
+        if self.bundle.key.trim().is_empty() {
+            bail!("bundle.key must not be empty");
+        }
+        if self.bundle.name.trim().is_empty() {
+            bail!("bundle.name must not be empty");
+        }
+        if self.include.source_patterns.is_empty() {
+            bail!("include.source_patterns must not be empty");
+        }
+        Ok(())
+    }
+
+    pub fn sanitized_bundle_dir_name(&self) -> String {
+        sanitize_for_path(&self.bundle.key)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BundleMeta {
+    pub key: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct BundleIncludeConfig {
+    #[serde(default)]
+    pub source_patterns: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -381,6 +427,39 @@ pub fn load_source_file(config_path: &Path) -> Result<LoadedSource> {
         path: config_path.to_path_buf(),
         config,
     })
+}
+
+pub fn load_bundles_from_dir(bundle_dir: &Path) -> Result<Vec<LoadedBundle>> {
+    if !bundle_dir.exists() {
+        bail!("bundle dir does not exist: {}", bundle_dir.display());
+    }
+
+    let mut loaded = Vec::new();
+    for entry in WalkDir::new(bundle_dir) {
+        let entry = entry?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            continue;
+        }
+
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read bundle config: {}", path.display()))?;
+        let config: BundleConfig = toml::from_str(&text)
+            .with_context(|| format!("failed to parse toml in {}", path.display()))?;
+        config
+            .validate()
+            .with_context(|| format!("invalid bundle config {}", path.display()))?;
+        loaded.push(LoadedBundle {
+            path: path.to_path_buf(),
+            config,
+        });
+    }
+
+    loaded.sort_by(|a, b| a.config.bundle.key.cmp(&b.config.bundle.key));
+    Ok(loaded)
 }
 
 pub fn resolve_path(base_config_path: &Path, maybe_relative: &Path) -> Result<PathBuf> {

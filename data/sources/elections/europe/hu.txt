@@ -1,0 +1,2 @@
+# Hungary
+2026-04-12 | Parliamentary election | subtype=parliamentary | office=national_assembly | election_kind=parliamentary | source_class=official | source_event_id=hu-2026-parliamentary | source_url=https://www.valasztas.hu/en/important-deadlines | official_url=https://www.valasztas.hu/en/2026-parliamentary-elections | description=Official deadlines published by the National Election Office refer to election day on 12 April 2026.

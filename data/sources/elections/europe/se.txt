@@ -1,0 +1,2 @@
+# Sweden
+2026-09-13 | Riksdag election | subtype=parliamentary | office=riksdag | election_kind=parliamentary | source_class=official | source_event_id=se-2026-riksdag | source_url=https://www.val.se/kommande-val/val-2026---riksdag-region-och-kommun | official_url=https://www.val.se/kommande-val/val-2026---riksdag-region-och-kommun

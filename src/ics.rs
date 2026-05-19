@@ -10,6 +10,19 @@ pub fn write_source_year_calendar(
     events: &[&EventRecord],
     path: &Path,
 ) -> Result<()> {
+    write_calendar_file(&format!("{} {}", source.source.name, year), events, path)
+}
+
+pub fn write_named_year_calendar(
+    calendar_name: &str,
+    year: i32,
+    events: &[&EventRecord],
+    path: &Path,
+) -> Result<()> {
+    write_calendar_file(&format!("{calendar_name} {year}"), events, path)
+}
+
+fn write_calendar_file(calendar_name: &str, events: &[&EventRecord], path: &Path) -> Result<()> {
     let mut lines = Vec::new();
     push_line(&mut lines, "BEGIN:VCALENDAR".to_string());
     push_line(&mut lines, "VERSION:2.0".to_string());
@@ -21,7 +34,7 @@ pub fn write_source_year_calendar(
     push_line(&mut lines, "METHOD:PUBLISH".to_string());
     push_line(
         &mut lines,
-        format!("X-WR-CALNAME:{} {}", escape_text(&source.source.name), year),
+        format!("X-WR-CALNAME:{}", escape_text(calendar_name)),
     );
     push_line(&mut lines, "X-WR-TIMEZONE:UTC".to_string());
 

@@ -1,6 +1,8 @@
-use crate::config::{LoadedSource, load_source_file, load_sources_from_dir};
+use crate::config::{
+    LoadedBundle, LoadedSource, load_bundles_from_dir, load_source_file, load_sources_from_dir,
+};
 use crate::fetch::fetch_source_documents;
-use crate::ics::write_source_year_calendar;
+use crate::ics::{write_named_year_calendar, write_source_year_calendar};
 use crate::model::{CandidateEvent, EventRecord, SourceRunReport, State};
 use crate::parser::parse_source_events;
 use crate::store::{load_state, save_state};
@@ -95,6 +97,12 @@ pub fn sync_sources(options: &SyncOptions) -> Result<Vec<SourceRunReport>> {
     }
 
     if !options.dry_run {
+        rebuild_bundles(
+            &state,
+            &load_optional_bundles(&options.config_dir)?,
+            &options.out_dir,
+            None,
+        )?;
         save_state(&options.state_path, &state)?;
         info!(state = %options.state_path.display(), "state written");
     } else {
@@ -117,6 +125,12 @@ pub fn build_calendars(options: &BuildOptions) -> Result<()> {
     for source in sources {
         rebuild_source_calendars(&state, &source, &options.out_dir, options.year, None)?;
     }
+    rebuild_bundles(
+        &state,
+        &load_optional_bundles(&options.config_dir)?,
+        &options.out_dir,
+        options.year,
+    )?;
 
     Ok(())
 }
@@ -194,6 +208,52 @@ pub fn publish_existing_calendars(options: &PublishOptions) -> Result<usize> {
         }
     }
 
+    for bundle in load_optional_bundles(&options.config_dir)? {
+        let Some(mirror_base) = bundle.config.publish.mirror_dir.as_ref() else {
+            continue;
+        };
+
+        let file_prefix = bundle.config.sanitized_bundle_dir_name();
+        let bundle_out_dir = options.out_dir.join("bundles").join(&file_prefix);
+        if !bundle_out_dir.exists() {
+            continue;
+        }
+
+        let mirror_dir = if bundle.config.publish.mirror_source_subdir {
+            mirror_base.join(&file_prefix)
+        } else {
+            mirror_base.to_path_buf()
+        };
+        std::fs::create_dir_all(&mirror_dir)
+            .with_context(|| format!("failed to create mirror dir {}", mirror_dir.display()))?;
+
+        for entry in std::fs::read_dir(&bundle_out_dir)? {
+            let entry = entry?;
+            let src_path = entry.path();
+            if src_path.extension().and_then(|s| s.to_str()) != Some("ics") {
+                continue;
+            }
+            let Some(file_name) = src_path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if let Some(filter_year) = options.year
+                && extract_year_from_any_ics_filename(file_name, &file_prefix) != Some(filter_year)
+            {
+                continue;
+            }
+
+            let dst_path = mirror_dir.join(file_name);
+            std::fs::copy(&src_path, &dst_path).with_context(|| {
+                format!(
+                    "failed to publish {} to {}",
+                    src_path.display(),
+                    dst_path.display()
+                )
+            })?;
+            published += 1;
+        }
+    }
+
     Ok(published)
 }
 
@@ -219,6 +279,13 @@ pub fn validate_configs(options: &ValidateOptions) -> Result<Vec<String>> {
                 source.path.display()
             ));
         }
+        for bundle in load_optional_bundles(dir)? {
+            messages.push(format!(
+                "OK: {} ({})",
+                bundle.config.bundle.key,
+                bundle.path.display()
+            ));
+        }
         return Ok(messages);
     }
 
@@ -227,6 +294,20 @@ pub fn validate_configs(options: &ValidateOptions) -> Result<Vec<String>> {
 
 pub fn load_state_for_read(path: &Path) -> Result<State> {
     load_state(path)
+}
+
+fn bundle_config_dir(source_config_dir: &Path) -> Option<PathBuf> {
+    source_config_dir.parent().map(|parent| parent.join("bundles"))
+}
+
+fn load_optional_bundles(source_config_dir: &Path) -> Result<Vec<LoadedBundle>> {
+    let Some(bundle_dir) = bundle_config_dir(source_config_dir) else {
+        return Ok(Vec::new());
+    };
+    if !bundle_dir.exists() {
+        return Ok(Vec::new());
+    }
+    load_bundles_from_dir(&bundle_dir)
 }
 
 fn merge_source_events(
@@ -553,6 +634,89 @@ fn rebuild_source_calendars(
     Ok(())
 }
 
+fn rebuild_bundles(
+    state: &State,
+    bundles: &[LoadedBundle],
+    out_dir: &Path,
+    year_filter: Option<i32>,
+) -> Result<()> {
+    for bundle in bundles {
+        let mut by_year: HashMap<i32, Vec<&EventRecord>> = HashMap::new();
+        for event in state.events.values().filter(|event| {
+            !event.status.eq_ignore_ascii_case("cancelled")
+                && matches_bundle_patterns(&event.source_key, &bundle.config.include.source_patterns)
+        }) {
+            if let Some(year) = event.year_bucket() {
+                by_year.entry(year).or_default().push(event);
+            }
+        }
+
+        if let Some(year) = year_filter {
+            by_year.retain(|y, _| *y == year);
+        }
+
+        let bundle_dir = out_dir
+            .join("bundles")
+            .join(bundle.config.sanitized_bundle_dir_name());
+        std::fs::create_dir_all(&bundle_dir)
+            .with_context(|| format!("failed to create output dir {}", bundle_dir.display()))?;
+
+        let file_prefix = bundle.config.sanitized_bundle_dir_name();
+        let mirror_bundle_dir = bundle.config.publish.mirror_dir.as_ref().map(|base| {
+            if bundle.config.publish.mirror_source_subdir {
+                base.join(&file_prefix)
+            } else {
+                base.to_path_buf()
+            }
+        });
+        if let Some(mirror_dir) = &mirror_bundle_dir {
+            std::fs::create_dir_all(mirror_dir)
+                .with_context(|| format!("failed to create mirror dir {}", mirror_dir.display()))?;
+        }
+
+        let mut expected_files = HashSet::new();
+        for (year, mut events) in by_year {
+            events.sort_by(|a, b| event_sort_key(a).cmp(&event_sort_key(b)));
+            let file_name = bundle_ics_filename(bundle, &file_prefix, year);
+            expected_files.insert(file_name.clone());
+            let path = bundle_dir.join(&file_name);
+            write_named_year_calendar(&bundle.config.bundle.name, year, &events, &path)?;
+            if let Some(mirror_dir) = &mirror_bundle_dir {
+                let mirror_path = mirror_dir.join(&file_name);
+                std::fs::copy(&path, &mirror_path).with_context(|| {
+                    format!(
+                        "failed to publish mirrored calendar {}",
+                        mirror_path.display()
+                    )
+                })?;
+            }
+        }
+
+        cleanup_stale_calendar_files(&bundle_dir, &expected_files, &file_prefix)?;
+        if let Some(mirror_dir) = &mirror_bundle_dir
+            && mirror_dir.exists()
+        {
+            cleanup_stale_calendar_files(mirror_dir, &expected_files, &file_prefix)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn matches_bundle_patterns(source_key: &str, patterns: &[String]) -> bool {
+    patterns
+        .iter()
+        .any(|pattern| source_key_matches_pattern(source_key, pattern))
+}
+
+fn source_key_matches_pattern(source_key: &str, pattern: &str) -> bool {
+    if let Some(prefix) = pattern.strip_suffix('*') {
+        source_key.starts_with(prefix)
+    } else {
+        source_key == pattern
+    }
+}
+
 fn cleanup_stale_calendar_files(
     source_dir: &Path,
     expected_files: &HashSet<String>,
@@ -614,6 +778,23 @@ fn source_ics_filename(
     for (key, value) in &source.config.fetch.template_vars {
         file_name = file_name.replace(&format!("{{{{{key}}}}}"), value);
     }
+
+    if file_name.ends_with(".ics") {
+        file_name
+    } else {
+        format!("{file_name}.ics")
+    }
+}
+
+fn bundle_ics_filename(bundle: &LoadedBundle, file_prefix: &str, year: i32) -> String {
+    let Some(template) = bundle.config.publish.file_name_template.as_deref() else {
+        return ics_filename(file_prefix, year);
+    };
+
+    let mut file_name = template.to_string();
+    file_name = file_name.replace("{{year}}", &year.to_string());
+    file_name = file_name.replace("{{bundle_key}}", &bundle.config.bundle.key);
+    file_name = file_name.replace("{{bundle_dir}}", file_prefix);
 
     if file_name.ends_with(".ics") {
         file_name

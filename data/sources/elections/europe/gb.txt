@@ -1,0 +1,2 @@
+# United Kingdom
+2029 | General election | subtype=general | office=house_of_commons | election_kind=general | source_class=aggregator | source_event_id=gb-2029-general | source_url=https://europeelects.eu/uk/ | official_url=https://www.electoralcommission.org.uk/
