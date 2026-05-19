@@ -1,0 +1,2 @@
+# Cyprus
+2026-05-24 | Parliamentary election | subtype=parliamentary | office=house_of_representatives | election_kind=parliamentary | source_class=official | source_event_id=cy-2026-parliamentary | source_url=https://www.elections.gov.cy/moi/elections/elections.nsf/all/D0A37427B916EE90C2258D63003D7776 | official_url=https://www.elections.gov.cy/moi/elections/elections.nsf/all/D0A37427B916EE90C2258D63003D7776

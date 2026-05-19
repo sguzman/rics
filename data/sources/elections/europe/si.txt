@@ -1,0 +1,2 @@
+# Slovenia
+2026-03-22 | Parliamentary election | subtype=parliamentary | office=national_assembly | election_kind=parliamentary | source_class=official | source_event_id=si-2026-parliamentary | source_url=https://www.gov.si/teme/volitve-v-drzavni-zbor/ | official_url=https://www.gov.si/teme/volitve-v-drzavni-zbor/

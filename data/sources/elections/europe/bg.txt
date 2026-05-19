@@ -1,0 +1,2 @@
+# Bulgaria
+2026-04-19 | Parliamentary election | subtype=parliamentary | office=national_assembly | election_kind=parliamentary | source_class=official | source_event_id=bg-2026-parliamentary | source_url=https://www.cik.bg/bg/decisions/4435/2026-02-19 | official_url=https://www.cik.bg/bg/decisions/4435/2026-02-19
