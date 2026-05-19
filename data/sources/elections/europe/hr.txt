@@ -1,0 +1,2 @@
+# Croatia
+2028 | Parliamentary election | subtype=parliamentary | office=sabor | election_kind=parliamentary | source_class=official | source_event_id=hr-2028-parliamentary | source_url=https://www.sabor.hr/en/about-parliament | official_url=https://www.sabor.hr/en/faq | description=Croatia's Parliament was elected on 17 April 2024 and the parliamentary term is four years, so the next regular election falls in 2028.

@@ -1,0 +1,2 @@
+# Malta
+2026-05-30 | General election | subtype=general | office=house_of_representatives | election_kind=general | source_class=official | source_event_id=mt-2026-general | source_url=https://electoral.gov.mt/Contents/Item/Display/80768 | official_url=https://electoral.gov.mt/Contents/Item/Display/80744 | description=The Electoral Commission states that the General Elections due on 30 May 2026 are based on the revised electoral register published on 1 May 2026.

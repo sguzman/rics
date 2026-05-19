@@ -1,0 +1,2 @@
+# Greece
+2027 | General election | subtype=general | office=hellenic_parliament | election_kind=general | source_class=official | source_event_id=gr-2027-general | source_url=https://www.hellenicparliament.gr/en/Enimerosi/Sychnes-Erotiseis/ | official_url=https://www.hellenicparliament.gr/en/Organosi-kai-Leitourgia/Olomeleia/ | description=General elections in Greece are normally held every four years unless Parliament is dissolved earlier. After the 2023 elections, the next regular cycle points to 2027.

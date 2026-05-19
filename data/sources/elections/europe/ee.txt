@@ -1,0 +1,2 @@
+# Estonia
+2027-03-07 | Riigikogu election | subtype=parliamentary | office=riigikogu | election_kind=parliamentary | source_class=official | source_event_id=ee-2027-riigikogu | source_url=https://www.riigikogu.ee/en/introduction-and-history/riigikogu-tasks-organisation-work/elections-riigikogu/ | official_url=https://www.riigikogu.ee/en/parliament-of-estonia/composition/ | description=Riigikogu elections are held on the first Sunday of March every fourth year. After the 5 March 2023 election, the next regular election falls on 7 March 2027.

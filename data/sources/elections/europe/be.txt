@@ -1,0 +1,2 @@
+# Belgium
+2029 | Federal election | subtype=parliamentary | office=house_of_representatives | election_kind=parliamentary | source_class=official | source_event_id=be-2029-federal | source_url=https://www.dekamer.be/accessible/laChambre_fonctionnement.htm | official_url=https://www.dekamer.be/kvvcr/pdf_sections/pri/fiche/en_09_02.pdf | description=Belgium's House of Representatives is renewed in principle every five years. Following the federal election of 9 June 2024, the next regular federal election falls in 2029.

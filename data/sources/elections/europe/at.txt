@@ -1,0 +1,2 @@
+# Austria
+2029 | National Council election | subtype=parliamentary | office=nationalrat | election_kind=parliamentary | source_class=official | source_event_id=at-2029-nationalrat | source_url=https://www.parlament.gv.at/verstehen/demokratie-wahlen/parlament-wahlen/wahlen-nr/index.html | official_url=https://www.parlament.gv.at/verstehen/nationalrat/ | description=Austria's National Council was last elected on 29 September 2024 and the legislative period generally lasts five years, so the next regular election falls in 2029.

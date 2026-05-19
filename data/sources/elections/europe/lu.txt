@@ -1,0 +1,2 @@
+# Luxembourg
+2028 | Chamber of Deputies election | subtype=parliamentary | office=chambre_des_deputes | election_kind=parliamentary | source_class=official | source_event_id=lu-2028-chamber | source_url=https://www.chd.lu/en/elections | official_url=https://www.chd.lu/fr/la-fonction-de-depute | description=Luxembourg's deputies are elected for five years. Following the legislative election of 8 October 2023, the next regular Chamber election falls in 2028.
