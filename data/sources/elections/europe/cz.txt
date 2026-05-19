@@ -1,0 +1,2 @@
+# Czechia
+2029 | Chamber of Deputies election | subtype=parliamentary | office=chamber_of_deputies | election_kind=parliamentary | source_class=official | source_event_id=cz-2029-chamber | source_url=https://pspen.psp.cz/news/czechs-to-vote-in-general-election-in-october-2025/ | official_url=https://pspen.psp.cz/chamber-members/legal-framework/ | description=The Chamber of Deputies is elected for a four-year term under Article 16 of the Constitution. Following the 2025 election, the next regular Chamber election falls in 2029.

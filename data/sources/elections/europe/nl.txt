@@ -1,0 +1,2 @@
+# Netherlands
+2029 | House of Representatives election | subtype=parliamentary | office=tweede_kamer | election_kind=parliamentary | source_class=official | source_event_id=nl-2029-tweede-kamer | source_url=https://www.government.nl/topics/elections/voting-in-house-of-representatives-elections | official_url=https://www.government.nl/topics/elections/voting-in-house-of-representatives-elections | description=House of Representatives elections are held once every four years, or earlier if the government falls. The current regular cycle points to 2029.

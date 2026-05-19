@@ -1,0 +1,2 @@
+# Finland
+2027 | Parliamentary election | subtype=parliamentary | office=eduskunta | election_kind=parliamentary | source_class=official | source_event_id=fi-2027-parliamentary | source_url=https://vaalit.fi/documents/5430845/137328572/Eduskuntavaalit_2023_selkoesite_fi.pdf | official_url=https://vaalit.fi/documents/5430845/137328572/Eduskuntavaalit_2023_selkoesite_fi.pdf | description=The Ministry of Justice states that parliamentary elections are held every fourth year. Following the 2 April 2023 parliamentary election, the next regular election falls in 2027.

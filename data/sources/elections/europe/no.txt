@@ -1,0 +1,2 @@
+# Norway
+September 2029 | Parliamentary election | subtype=parliamentary | office=storting | election_kind=parliamentary | source_class=official | source_event_id=no-2029-storting | source_url=https://www.stortinget.no/no/english/About-the-Storting/Elections/ | official_url=https://www.stortinget.no/no/Stortinget-og-demokratiet/Valg-og-konstituering/Stortingsvalg/ | description=The Storting states that parliamentary elections are held in September every fourth year. After the 8 September 2025 election, the next regular parliamentary election falls in September 2029.

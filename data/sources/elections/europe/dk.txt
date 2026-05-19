@@ -1,0 +1,2 @@
+# Denmark
+2026 | Folketing election | subtype=parliamentary | office=folketing | election_kind=parliamentary | source_class=official | source_event_id=dk-2026-folketing | source_url=https://www.ft.dk/da/aktuelt/nyheder/2022/11/valgresultat-2022 | official_url=https://www.ft.dk/da/folkestyret/valg-og-afstemninger/folketingsvalg | description=Folketing elections must be held at least every four years. The last general election was held on 1 November 2022, so a regular election is due no later than 2026.
