@@ -1,0 +1,9 @@
+[bundle]
+key = "us_states.elections"
+name = "US State Elections"
+
+[include]
+source_patterns = ["elections.us.*"]
+
+[publish]
+file_name_template = "us-state-elections-{{year}}.ics"
