@@ -1,0 +1,2 @@
+# Poland
+2027 | Parliamentary election | subtype=parliamentary | office=sejm | election_kind=parliamentary | source_class=official | source_event_id=pl-2027-parliamentary | source_url=https://www.sejm.gov.pl/english/sejm/pos.htm | official_url=https://api.sejm.gov.pl/eli/acts/DU/2019/684/text.html | description=The Sejm serves a four-year term and the Election Code requires the President to schedule parliamentary elections within 30 days before the term expires, implying the next regular election in 2027.

@@ -1,0 +1,2 @@
+# Slovakia
+2029 | Presidential election | subtype=presidential | office=president | election_kind=presidential | source_class=official | source_event_id=sk-2029-presidential | source_url=https://www.prezident.sk/en/press-room/20/ | official_url=https://www.prezident.sk/en/page/constitution/ | description=The President of the Slovak Republic was elected on 6 April 2024, assumed office on 15 June 2024, and the Constitution sets a five-year presidential term, implying the next regular presidential election in 2029.

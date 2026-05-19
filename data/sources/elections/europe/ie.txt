@@ -1,0 +1,2 @@
+# Ireland
+2029 | General election | subtype=general | office=dail | election_kind=general | source_class=official | source_event_id=ie-2029-general | source_url=https://www.electoralcommission.ie/faqs/ | official_url=https://www.electoralcommission.ie/general-elections/ | description=The Electoral Commission says the next planned general election is due when the current Dail term ends in 2029.

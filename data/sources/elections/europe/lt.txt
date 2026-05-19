@@ -1,0 +1,2 @@
+# Lithuania
+2028 | Seimas election | subtype=parliamentary | office=seimas | election_kind=parliamentary | source_class=official | source_event_id=lt-2028-seimas | source_url=https://www.lrs.lt/sip/portal.show?p_k=2&p_r=8787 | official_url=https://www.lrs.lt/sip/portal.show?p_k=2&p_r=8787 | description=The Seimas identifies the current legislature as 2024-2028, so the next regular parliamentary election falls in 2028.
