@@ -1,0 +1,3 @@
+# US FCC
+2026 | FCC open meeting calendar published | subtype=open_meeting_calendar | office=fcc | branch=independent_agency | institution=fcc | source_class=official | source_event_id=us-fcc-open-meeting-calendar-2026 | source_url=https://www.fcc.gov/news-events/events/open-commission-meeting | description=The FCC Open Commission Meeting page publishes the agency's meeting schedule and agendas for the year.
+2026-05-20 | FCC May open commission meeting | subtype=open_meeting | office=fcc | branch=independent_agency | institution=fcc | source_class=official | source_event_id=us-fcc-open-meeting-2026-05-20 | source_url=https://docs.fcc.gov/public/attachments/DOC-421204A1.pdf | description=The FCC announced its May 20, 2026 open commission meeting and tentative agenda.

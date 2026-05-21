@@ -1,0 +1,38 @@
+[source]
+key = "federal.us.committees.house"
+name = "US House Committees"
+domain = "federal"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/federal/us_committees/house.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "federal_event"
+status = "scheduled"
+categories = ["federal", "united_states", "committees", "house"]
+importance = 75
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "us-federal-house-committees-{{year}}.ics"

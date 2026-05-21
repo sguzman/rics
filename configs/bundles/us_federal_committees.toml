@@ -1,0 +1,9 @@
+[bundle]
+key = "us_federal.committees"
+name = "US Federal Committees"
+
+[include]
+source_patterns = ["federal.us.committees.*"]
+
+[publish]
+file_name_template = "us-federal-committees-{{year}}.ics"

@@ -1,0 +1,3 @@
+# US FTC
+2026 | FTC commission events calendar published | subtype=agency_calendar | office=ftc | branch=independent_agency | institution=ftc | source_class=official | source_event_id=us-ftc-calendar-2026 | source_url=https://www.ftc.gov/news-events/events | description=The FTC events page publishes the commission's scheduled public and closed events.
+2026-03-12 | FTC closed commission meeting | subtype=closed_meeting | office=commission | branch=independent_agency | institution=ftc | source_class=official | source_event_id=us-ftc-closed-meeting-2026-03-12 | source_url=https://www.ftc.gov/news-events/events/2026/03/closed-commission-meeting | description=The FTC announced a closed commission meeting for March 12, 2026, at 3:30 p.m. Eastern.

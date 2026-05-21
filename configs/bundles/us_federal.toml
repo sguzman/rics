@@ -3,7 +3,13 @@ key = "us_federal.core"
 name = "US Federal Core"
 
 [include]
-source_patterns = ["federal.us.*"]
+source_patterns = [
+  "federal.us.elections",
+  "federal.us.congress",
+  "federal.us.scotus",
+  "federal.us.executive",
+  "federal.us.rulemaking",
+]
 
 [publish]
 file_name_template = "us-federal-core-{{year}}.ics"

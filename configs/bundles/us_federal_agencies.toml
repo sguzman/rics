@@ -1,0 +1,9 @@
+[bundle]
+key = "us_federal.agencies"
+name = "US Federal Agencies"
+
+[include]
+source_patterns = ["federal.us.agencies.*"]
+
+[publish]
+file_name_template = "us-federal-agencies-{{year}}.ics"

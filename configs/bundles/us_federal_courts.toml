@@ -1,0 +1,9 @@
+[bundle]
+key = "us_federal.courts"
+name = "US Federal Courts"
+
+[include]
+source_patterns = ["federal.us.courts.*"]
+
+[publish]
+file_name_template = "us-federal-courts-{{year}}.ics"
