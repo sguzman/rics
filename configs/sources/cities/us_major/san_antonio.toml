@@ -1,0 +1,38 @@
+[source]
+key = "cities.us.san_antonio"
+name = "San Antonio"
+domain = "cities"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US-TX-SAT"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/cities/us_major/san_antonio.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "city_event"
+status = "scheduled"
+categories = ["cities", "us_major", "civic", "san_antonio"]
+importance = 80
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "us-city-san-antonio-{{year}}.ics"
