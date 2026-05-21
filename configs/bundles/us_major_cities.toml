@@ -1,0 +1,9 @@
+[bundle]
+key = "us_major_cities.civic"
+name = "US Major Cities Civic"
+
+[include]
+source_patterns = ["cities.us.*"]
+
+[publish]
+file_name_template = "us-major-cities-civic-{{year}}.ics"
