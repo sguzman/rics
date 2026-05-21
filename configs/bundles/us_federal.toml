@@ -1,0 +1,9 @@
+[bundle]
+key = "us_federal.core"
+name = "US Federal Core"
+
+[include]
+source_patterns = ["federal.us.*"]
+
+[publish]
+file_name_template = "us-federal-core-{{year}}.ics"

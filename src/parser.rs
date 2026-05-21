@@ -59,6 +59,7 @@ fn run_custom_parser(
         "rough_text_lines_v1" => Box::new(RoughTextLinesParser),
         "econ_indicators_calendar_v1" => Box::new(EconIndicatorsCalendarParser),
         "europe_elections_feed_v1" => Box::new(EuropeElectionsFeedParser),
+        "structured_calendar_feed_v1" => Box::new(StructuredCalendarFeedParser),
         "us_state_elections_feed_v1" => Box::new(UsStateElectionsFeedParser),
         _ => return None,
     };
@@ -1461,6 +1462,22 @@ impl CustomParser for EuropeElectionsFeedParser {
     }
 }
 
+struct StructuredCalendarFeedParser;
+
+impl CustomParser for StructuredCalendarFeedParser {
+    fn key(&self) -> &'static str {
+        "structured_calendar_feed_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        parse_structured_elections_feed(self.key(), source, docs, None, None)
+    }
+}
+
 struct UsStateElectionsFeedParser;
 
 impl CustomParser for UsStateElectionsFeedParser {
@@ -1610,7 +1627,7 @@ fn parse_structured_elections_feed(
                 .or_insert_with(|| "curated".to_string());
 
             let mut categories = source.config.event.categories.clone();
-            categories.push("elections".to_string());
+            categories.push(source.config.source.domain.clone());
             if let Some(country) = source.config.source.default_country.as_deref() {
                 categories.push(country.to_ascii_lowercase());
             }

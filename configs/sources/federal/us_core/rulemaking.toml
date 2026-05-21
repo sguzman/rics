@@ -1,0 +1,38 @@
+[source]
+key = "federal.us.rulemaking"
+name = "US Federal Rulemaking"
+domain = "federal"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/federal/us_core/rulemaking.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "federal_event"
+status = "scheduled"
+categories = ["federal", "united_states", "rulemaking"]
+importance = 80
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "us-federal-rulemaking-{{year}}.ics"
