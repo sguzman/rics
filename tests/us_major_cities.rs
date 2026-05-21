@@ -12,7 +12,7 @@ fn us_major_city_sources_validate_and_have_expected_keys() -> Result<()> {
     let sources = load_sources_from_dir(&root.join("configs/sources/cities/us_major"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
-    assert_eq!(sources.len(), 3);
+    assert_eq!(sources.len(), 6);
     assert!(bundles
         .iter()
         .any(|bundle| bundle.config.bundle.key == "us_major_cities.civic"));
@@ -24,6 +24,9 @@ fn us_major_city_sources_validate_and_have_expected_keys() -> Result<()> {
     assert!(keys.contains("cities.us.nyc"));
     assert!(keys.contains("cities.us.los_angeles"));
     assert!(keys.contains("cities.us.chicago"));
+    assert!(keys.contains("cities.us.houston"));
+    assert!(keys.contains("cities.us.philadelphia"));
+    assert!(keys.contains("cities.us.phoenix"));
 
     Ok(())
 }
