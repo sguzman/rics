@@ -1,0 +1,38 @@
+[source]
+key = "sports.us.mls.schedule"
+name = "MLS Schedule"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "http"
+base_url = "https://stats-api.mlssoccer.com/matches/seasons/MLS-SEA-0001KA?competition_id=MLS-COM-000001&match_date[gte]=2026-02-01&match_date[lte]=2026-12-31&per_page=500&sort=asc"
+timeout_secs = 120
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "us_pro", "mls", "schedule"]
+importance = 78
+
+[custom]
+enabled = true
+parser = "mls_statsapi_schedule_v1"
+
+[publish]
+file_name_template = "us-sports-mls-schedule-{{year}}.ics"

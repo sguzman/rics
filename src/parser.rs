@@ -65,6 +65,7 @@ fn run_custom_parser(
         "nhl_schedule_api_v1" => Box::new(NhlScheduleApiParser),
         "nba_full_schedule_v1" => Box::new(NbaFullScheduleParser),
         "nfl_operations_schedule_v1" => Box::new(NflOperationsScheduleParser),
+        "mls_statsapi_schedule_v1" => Box::new(MlsStatsApiScheduleParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -1999,6 +2000,163 @@ impl CustomParser for NflOperationsScheduleParser {
                         });
                     }
                 }
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+struct MlsStatsApiScheduleParser;
+
+impl CustomParser for MlsStatsApiScheduleParser {
+    fn key(&self) -> &'static str {
+        "mls_statsapi_schedule_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let Some(doc) = docs.first() else {
+            return Ok(Vec::new());
+        };
+
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(source.config.fetch.timeout_secs.max(30)))
+            .build()
+            .context("failed to build mls api client")?;
+
+        let mut events = Vec::new();
+        let mut next_page_token: Option<String> = None;
+
+        loop {
+            let mut request = client.get(&doc.source_url);
+            if let Some(token) = &next_page_token {
+                request = request.query(&[("page_token", token.as_str())]);
+            }
+
+            let payload: Value = request
+                .send()
+                .with_context(|| format!("failed to fetch mls schedule json from {}", doc.source_url))?
+                .error_for_status()
+                .with_context(|| format!("mls schedule api returned error for {}", doc.source_url))?
+                .json()
+                .with_context(|| format!("failed to decode mls schedule json from {}", doc.source_url))?;
+
+            let Some(schedule) = payload.get("schedule").and_then(Value::as_array) else {
+                break;
+            };
+
+            for game in schedule {
+                let Some(game_id) = game.get("match_id").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Some(start_raw) = game.get("planned_kickoff_time").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Ok(start) =
+                    DateTime::parse_from_rfc3339(start_raw).map(|dt| dt.with_timezone(&Utc))
+                else {
+                    continue;
+                };
+
+                let away_name = game
+                    .get("away_team_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Away");
+                let home_name = game
+                    .get("home_team_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Home");
+                let venue = game
+                    .get("stadium_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Unknown venue");
+                let title = format!("MLS: {} at {}", away_name, home_name);
+                let competition = game
+                    .get("competition_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("MLS");
+                let match_type = game
+                    .get("match_type")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Regular season");
+                let status = game
+                    .get("match_date_time_status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Scheduled");
+
+                let mut metadata = BTreeMap::new();
+                metadata.insert("league".to_string(), "mls".to_string());
+                metadata.insert("away_team".to_string(), away_name.to_string());
+                metadata.insert("home_team".to_string(), home_name.to_string());
+                metadata.insert("venue".to_string(), venue.to_string());
+                metadata.insert("competition".to_string(), competition.to_string());
+                metadata.insert("match_type".to_string(), match_type.to_string());
+                metadata.insert("status_detail".to_string(), status.to_string());
+                metadata.insert("custom_parser".to_string(), self.key().to_string());
+                if let Some(sub_league) = game.get("sub_league").and_then(Value::as_str) {
+                    metadata.insert("sub_league".to_string(), sub_league.to_string());
+                }
+                if let Some(match_day) = game.get("match_day").and_then(Value::as_i64) {
+                    metadata.insert("match_day".to_string(), match_day.to_string());
+                }
+                if let Some(city) = game.get("stadium_city").and_then(Value::as_str) {
+                    metadata.insert("stadium_city".to_string(), city.to_string());
+                }
+                if let Some(code) = game
+                    .get("home_team_three_letter_code")
+                    .and_then(Value::as_str)
+                {
+                    metadata.insert("home_code".to_string(), code.to_string());
+                }
+                if let Some(code) = game
+                    .get("away_team_three_letter_code")
+                    .and_then(Value::as_str)
+                {
+                    metadata.insert("away_code".to_string(), code.to_string());
+                }
+                if let Some(neutral) = game.get("neutral_venue").and_then(Value::as_bool) {
+                    metadata.insert("neutral_venue".to_string(), neutral.to_string());
+                }
+                if let Some(token) = game.get("competition_label").and_then(Value::as_str) {
+                    metadata.insert("competition_label".to_string(), token.to_string());
+                }
+
+                let description = format!(
+                    "{} at {} from {}. {}. Status: {}.",
+                    away_name, home_name, venue, match_type, status
+                );
+
+                events.push(CandidateEvent {
+                    source_key: source.config.source.key.clone(),
+                    source_name: source.config.source.name.clone(),
+                    source_event_id: Some(game_id.to_string()),
+                    source_url: Some(doc.source_url.clone()),
+                    title,
+                    description: Some(description),
+                    time: EventTimeSpec::DateTime { start, end: None },
+                    timezone: source.config.source.timezone.clone(),
+                    status: source.config.event.status.clone(),
+                    event_type: source.config.event.event_type.clone(),
+                    subtype: Some("regular_season_game".to_string()),
+                    categories: source.config.event.categories.clone(),
+                    jurisdiction: source.config.source.jurisdiction.clone(),
+                    country: source.config.source.default_country.clone(),
+                    importance: source.config.event.importance,
+                    confidence: Some(0.98),
+                    metadata,
+                });
+            }
+
+            next_page_token = payload
+                .get("next_page_token")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            if next_page_token.is_none() {
+                break;
             }
         }
 
