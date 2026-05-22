@@ -1474,7 +1474,13 @@ impl CustomParser for StructuredCalendarFeedParser {
         source: &LoadedSource,
         docs: &[FetchedDocument],
     ) -> Result<Vec<CandidateEvent>> {
-        parse_structured_elections_feed(self.key(), source, docs, None, None)
+        parse_structured_elections_feed(
+            self.key(),
+            source,
+            docs,
+            source.config.custom.filter_field.as_deref(),
+            source.config.custom.filter_value.as_deref(),
+        )
     }
 }
 

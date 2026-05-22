@@ -1,0 +1,9 @@
+[bundle]
+key = "us_pro_sports.all"
+name = "US Pro Sports"
+
+[include]
+source_patterns = ["sports.us.*"]
+
+[publish]
+file_name_template = "us-pro-sports-{{year}}.ics"

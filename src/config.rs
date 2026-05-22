@@ -368,6 +368,10 @@ pub struct CustomConfig {
     pub parser: Option<String>,
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub filter_field: Option<String>,
+    #[serde(default)]
+    pub filter_value: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
