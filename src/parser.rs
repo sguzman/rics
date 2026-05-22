@@ -64,6 +64,7 @@ fn run_custom_parser(
         "mlb_statsapi_schedule_v1" => Box::new(MlbStatsApiScheduleParser),
         "nhl_schedule_api_v1" => Box::new(NhlScheduleApiParser),
         "nba_full_schedule_v1" => Box::new(NbaFullScheduleParser),
+        "nfl_operations_schedule_v1" => Box::new(NflOperationsScheduleParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -1878,6 +1879,187 @@ impl CustomParser for NbaFullScheduleParser {
 
         Ok(events)
     }
+}
+
+struct NflOperationsScheduleParser;
+
+impl CustomParser for NflOperationsScheduleParser {
+    fn key(&self) -> &'static str {
+        "nfl_operations_schedule_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let mut events = Vec::new();
+
+        for doc in docs {
+            let html_text = String::from_utf8_lossy(&doc.body).to_string();
+            let parsed = Html::parse_document(&html_text);
+            let details_sel = Selector::parse("details.week-section")
+                .map_err(|_| anyhow!("failed to parse nfl week selector"))?;
+            let summary_sel =
+                Selector::parse("summary").map_err(|_| anyhow!("failed to parse summary selector"))?;
+            let date_sel = Selector::parse("div.game-date")
+                .map_err(|_| anyhow!("failed to parse game-date selector"))?;
+            let table_sel = Selector::parse("table.game-table")
+                .map_err(|_| anyhow!("failed to parse table selector"))?;
+            let tr_sel = Selector::parse("tr").map_err(|_| anyhow!("failed to parse tr selector"))?;
+            let td_sel = Selector::parse("td").map_err(|_| anyhow!("failed to parse td selector"))?;
+
+            for section in parsed.select(&details_sel) {
+                let summary_text = section
+                    .select(&summary_sel)
+                    .next()
+                    .map(|s| s.text().collect::<Vec<_>>().join(" "))
+                    .unwrap_or_default();
+                let week_label = summary_text.split('(').next().unwrap_or("").trim().to_string();
+                let week_range = summary_text
+                    .split('(')
+                    .nth(1)
+                    .map(|v| v.trim_end_matches(')').trim().to_string());
+
+                let date_nodes = section.select(&date_sel).collect::<Vec<_>>();
+                let table_nodes = section.select(&table_sel).collect::<Vec<_>>();
+                for (date_node, table_node) in date_nodes.into_iter().zip(table_nodes.into_iter()) {
+                    let date_label = date_node.text().collect::<Vec<_>>().join(" ").trim().to_string();
+                    for row in table_node.select(&tr_sel) {
+                        let cols = row
+                            .select(&td_sel)
+                            .map(|td| td.text().collect::<Vec<_>>().join(" ").trim().to_string())
+                            .filter(|v| !v.is_empty())
+                            .collect::<Vec<_>>();
+                        if cols.len() < 3 {
+                            continue;
+                        }
+
+                        let matchup = cols[0].clone();
+                        let kickoff = cols[1].clone();
+                        let network = cols[2].clone();
+                        if matchup == "TBD" {
+                            continue;
+                        }
+
+                        let (title, metadata_matchup) = normalize_nfl_matchup(&matchup);
+                        let time = if date_label == "Date TBD" || kickoff == "TBD" {
+                            EventTimeSpec::Tbd {
+                                note: Some(format!(
+                                    "{} {} {}",
+                                    week_label,
+                                    week_range.clone().unwrap_or_default(),
+                                    matchup
+                                )),
+                            }
+                        } else if let Some(start) = parse_nfl_datetime(&date_label, &kickoff)? {
+                            EventTimeSpec::DateTime { start, end: None }
+                        } else {
+                            EventTimeSpec::Tbd {
+                                note: Some(format!("{date_label} {kickoff}")),
+                            }
+                        };
+
+                        let mut metadata = BTreeMap::new();
+                        metadata.insert("league".to_string(), "nfl".to_string());
+                        metadata.insert("week".to_string(), week_label.clone());
+                        metadata.insert("network".to_string(), network.clone());
+                        metadata.insert("matchup".to_string(), matchup.clone());
+                        metadata.insert("custom_parser".to_string(), self.key().to_string());
+                        if let Some(range) = &week_range {
+                            metadata.insert("week_range".to_string(), range.clone());
+                        }
+                        for (k, v) in metadata_matchup {
+                            metadata.insert(k, v);
+                        }
+
+                        let description = format!(
+                            "{}. {} on {}. {}.",
+                            matchup, week_label, network, date_label
+                        );
+
+                        events.push(CandidateEvent {
+                            source_key: source.config.source.key.clone(),
+                            source_name: source.config.source.name.clone(),
+                            source_event_id: Some(format!("{}|{}|{}", week_label, date_label, matchup)),
+                            source_url: Some(doc.source_url.clone()),
+                            title,
+                            description: Some(description),
+                            time,
+                            timezone: source.config.source.timezone.clone(),
+                            status: source.config.event.status.clone(),
+                            event_type: source.config.event.event_type.clone(),
+                            subtype: Some("regular_season_game".to_string()),
+                            categories: source.config.event.categories.clone(),
+                            jurisdiction: source.config.source.jurisdiction.clone(),
+                            country: source.config.source.default_country.clone(),
+                            importance: source.config.event.importance,
+                            confidence: Some(0.98),
+                            metadata,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+fn normalize_nfl_matchup(matchup: &str) -> (String, BTreeMap<String, String>) {
+    let mut metadata = BTreeMap::new();
+    if let Some((away, home)) = matchup.split_once(" at ") {
+        metadata.insert("away_team".to_string(), away.to_string());
+        metadata.insert("home_team".to_string(), home.to_string());
+        return (format!("NFL: {} at {}", away, home), metadata);
+    }
+    if let Some((away, rest)) = matchup.split_once(" vs ") {
+        metadata.insert("away_team".to_string(), away.to_string());
+        metadata.insert("home_team".to_string(), rest.to_string());
+        metadata.insert("neutral_site".to_string(), "true".to_string());
+        return (format!("NFL: {} vs {}", away, rest), metadata);
+    }
+    (format!("NFL: {}", matchup), metadata)
+}
+
+fn parse_nfl_datetime(date_label: &str, kickoff: &str) -> Result<Option<DateTime<Utc>>> {
+    let normalized_date = date_label
+        .replace("Sept.", "Sep.")
+        .replace("Sept ", "Sep ");
+    let clean_time = kickoff.trim().trim_end_matches('*');
+    let Some((hour_text, rest)) = clean_time.split_once(':') else {
+        return Ok(None);
+    };
+    let minute_digits = rest.chars().take_while(|c| c.is_ascii_digit()).collect::<String>();
+    let suffix = rest.chars().skip_while(|c| c.is_ascii_digit()).collect::<String>();
+    let mut hour: u32 = match hour_text.parse() {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let minute: u32 = match minute_digits.parse() {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let lower_suffix = suffix.to_ascii_lowercase();
+    if lower_suffix.starts_with('p') && hour != 12 {
+        hour += 12;
+    }
+    if lower_suffix.starts_with('a') && hour == 12 {
+        hour = 0;
+    }
+
+    let date = NaiveDate::parse_from_str(&normalized_date, "%A, %b. %e, %Y")
+        .or_else(|_| NaiveDate::parse_from_str(&normalized_date, "%A, %b %e, %Y"))
+        .map_err(|err| anyhow!("failed to parse nfl date '{date_label}': {err}"))?;
+    let naive = date
+        .and_hms_opt(hour, minute, 0)
+        .ok_or_else(|| anyhow!("invalid nfl time {clean_time}"))?;
+    let eastern: Tz = chrono_tz::US::Eastern;
+    let local = eastern
+        .from_local_datetime(&naive)
+        .single()
+        .ok_or_else(|| anyhow!("ambiguous nfl local datetime {naive}"))?;
+    Ok(Some(local.with_timezone(&Utc)))
 }
 
 fn parse_structured_elections_feed(

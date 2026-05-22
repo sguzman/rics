@@ -12,7 +12,7 @@ fn us_pro_sports_sources_validate_and_have_expected_keys() -> Result<()> {
     let sources = load_sources_from_dir(&root.join("configs/sources/sports/us_pro"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
-    assert_eq!(sources.len(), 9);
+    assert_eq!(sources.len(), 10);
     assert!(bundles
         .iter()
         .any(|bundle| bundle.config.bundle.key == "us_pro_sports.all"));
@@ -25,6 +25,7 @@ fn us_pro_sports_sources_validate_and_have_expected_keys() -> Result<()> {
     assert!(keys.contains("sports.us.nba"));
     assert!(keys.contains("sports.us.mlb"));
     assert!(keys.contains("sports.us.mlb.schedule"));
+    assert!(keys.contains("sports.us.nfl.schedule"));
     assert!(keys.contains("sports.us.nhl"));
     assert!(keys.contains("sports.us.nhl.schedule"));
     assert!(keys.contains("sports.us.mls"));

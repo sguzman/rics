@@ -1,0 +1,38 @@
+[source]
+key = "sports.us.nfl.schedule"
+name = "NFL Schedule"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "http"
+base_url = "https://operations.nfl.com/gameday/nfl-schedule/2026-nfl-schedule/"
+timeout_secs = 45
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "html"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "us_pro", "nfl", "schedule"]
+importance = 78
+
+[custom]
+enabled = true
+parser = "nfl_operations_schedule_v1"
+
+[publish]
+file_name_template = "us-sports-nfl-schedule-{{year}}.ics"
