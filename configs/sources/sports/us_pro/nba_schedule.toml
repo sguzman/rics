@@ -1,0 +1,38 @@
+[source]
+key = "sports.us.nba.schedule"
+name = "NBA Schedule"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "http"
+base_url = "https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2025/league/00_full_schedule.json"
+timeout_secs = 120
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "us_pro", "nba", "schedule"]
+importance = 78
+
+[custom]
+enabled = true
+parser = "nba_full_schedule_v1"
+
+[publish]
+file_name_template = "us-sports-nba-schedule-{{year}}.ics"

@@ -1,0 +1,38 @@
+[source]
+key = "sports.us.mlb.schedule"
+name = "MLB Schedule"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "http"
+base_url = "https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=2026"
+timeout_secs = 45
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "us_pro", "mlb", "schedule"]
+importance = 78
+
+[custom]
+enabled = true
+parser = "mlb_statsapi_schedule_v1"
+
+[publish]
+file_name_template = "us-sports-mlb-schedule-{{year}}.ics"

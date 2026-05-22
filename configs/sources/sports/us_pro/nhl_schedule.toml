@@ -1,0 +1,38 @@
+[source]
+key = "sports.us.nhl.schedule"
+name = "NHL Schedule"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "http"
+base_url = "https://api-web.nhle.com/v1/schedule/2025-10-07"
+timeout_secs = 45
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "us_pro", "nhl", "schedule"]
+importance = 78
+
+[custom]
+enabled = true
+parser = "nhl_schedule_api_v1"
+
+[publish]
+file_name_template = "us-sports-nhl-schedule-{{year}}.ics"
