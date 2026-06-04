@@ -1,0 +1,38 @@
+[source]
+key = "sports.golf.pga_tour"
+name = "PGA TOUR"
+domain = "sports"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "http"
+base_url = "https://www.pgatour.com/schedule/2026"
+user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+timeout_secs = 60
+retry_attempts = 2
+retry_backoff_ms = 250
+
+[extract]
+format = "html"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "sports_event"
+status = "scheduled"
+categories = ["sports", "golf", "mens", "pga_tour"]
+importance = 84
+
+[custom]
+enabled = true
+parser = "pgatour_schedule_next_data_v1"
+
+[publish]
+file_name_template = "us-mens-golf-pga-tour-{{year}}.ics"

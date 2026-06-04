@@ -1,0 +1,9 @@
+[bundle]
+key = "us_mens_golf.all"
+name = "US Men's Golf"
+
+[include]
+source_patterns = ["sports.golf.*"]
+
+[publish]
+file_name_template = "us-mens-golf-{{year}}.ics"

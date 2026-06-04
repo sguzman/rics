@@ -66,6 +66,7 @@ fn run_custom_parser(
         "nba_full_schedule_v1" => Box::new(NbaFullScheduleParser),
         "nfl_operations_schedule_v1" => Box::new(NflOperationsScheduleParser),
         "mls_statsapi_schedule_v1" => Box::new(MlsStatsApiScheduleParser),
+        "pgatour_schedule_next_data_v1" => Box::new(PgaTourScheduleNextDataParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -2161,6 +2162,255 @@ impl CustomParser for MlsStatsApiScheduleParser {
         }
 
         Ok(events)
+    }
+}
+
+struct PgaTourScheduleNextDataParser;
+
+impl CustomParser for PgaTourScheduleNextDataParser {
+    fn key(&self) -> &'static str {
+        "pgatour_schedule_next_data_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let mut events = Vec::new();
+
+        for doc in docs {
+            let html_text = String::from_utf8_lossy(&doc.body).to_string();
+            let payload = extract_next_data_json(&html_text)
+                .with_context(|| format!("failed to extract __NEXT_DATA__ from {}", doc.source_url))?;
+            let Some(tournaments) = find_pgatour_tournaments(&payload) else {
+                continue;
+            };
+
+            for tournament in tournaments {
+                let Some(tournament_id) = tournament.get("tournamentId").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Some(name) = tournament.get("name").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Some(year) = tournament
+                    .get("year")
+                    .and_then(Value::as_str)
+                    .and_then(|v| v.parse::<i32>().ok())
+                else {
+                    continue;
+                };
+                let Some(date_text) = tournament
+                    .get("dateAccessibilityText")
+                    .and_then(Value::as_str)
+                else {
+                    continue;
+                };
+                let Some((start, end)) = parse_accessible_date_range(year, date_text) else {
+                    continue;
+                };
+
+                let tour_label = source.config.source.name.as_str();
+                let title = format!("{tour_label}: {name}");
+                let course_name = tournament
+                    .pointer("/courseData/name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Unknown course");
+                let city = tournament
+                    .pointer("/courseData/city")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let state = tournament
+                    .pointer("/courseData/stateCode")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let country = tournament
+                    .pointer("/courseData/countryCode")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let location_parts = [city, state, country]
+                    .into_iter()
+                    .filter(|v| !v.is_empty())
+                    .collect::<Vec<_>>();
+                let location = location_parts.join(", ");
+
+                let mut description = format!("{name} at {course_name}");
+                if !location.is_empty() {
+                    description.push_str(&format!(" in {location}"));
+                }
+                description.push('.');
+                if let Some(purse) = tournament.get("purse").and_then(Value::as_str) {
+                    if !purse.is_empty() && purse != "$0" {
+                        description.push_str(&format!(" Purse: {purse}."));
+                    }
+                }
+                if let Some(points_heading) = tournament.pointer("/standings/heading").and_then(Value::as_str) {
+                    if let Some(points_value) = tournament.pointer("/standings/value").and_then(Value::as_str) {
+                        description.push_str(&format!(" {points_heading}: {points_value}."));
+                    }
+                }
+
+                let mut metadata = BTreeMap::new();
+                metadata.insert("tour".to_string(), normalize_golf_tour_key(&source.config.source.key));
+                metadata.insert("custom_parser".to_string(), self.key().to_string());
+                metadata.insert("course".to_string(), course_name.to_string());
+                if !city.is_empty() {
+                    metadata.insert("city".to_string(), city.to_string());
+                }
+                if !state.is_empty() {
+                    metadata.insert("state".to_string(), state.to_string());
+                }
+                if !country.is_empty() {
+                    metadata.insert("country_code".to_string(), country.to_string());
+                }
+                if let Some(purse) = tournament.get("purse").and_then(Value::as_str) {
+                    if !purse.is_empty() {
+                        metadata.insert("purse".to_string(), purse.to_string());
+                    }
+                }
+                if let Some(status) = tournament.get("status").and_then(Value::as_str) {
+                    metadata.insert("status_detail".to_string(), status.to_string());
+                }
+                if let Some(display_date) = tournament.get("displayDate").and_then(Value::as_str) {
+                    metadata.insert("display_date".to_string(), display_date.to_string());
+                }
+                if let Some(points_heading) = tournament.pointer("/standings/heading").and_then(Value::as_str) {
+                    metadata.insert("standings_heading".to_string(), points_heading.to_string());
+                }
+                if let Some(points_value) = tournament.pointer("/standings/value").and_then(Value::as_str) {
+                    metadata.insert("standings_value".to_string(), points_value.to_string());
+                }
+                if let Some(champion) = tournament
+                    .pointer("/champions/0/displayName")
+                    .and_then(Value::as_str)
+                {
+                    metadata.insert("previous_champion".to_string(), champion.to_string());
+                }
+
+                let event_url = tournament
+                    .pointer("/ticketing/ticketsUrl")
+                    .and_then(Value::as_str)
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_owned)
+                    .or_else(|| {
+                        tournament
+                            .get("tournamentSiteUrl")
+                            .and_then(Value::as_str)
+                            .filter(|v| !v.is_empty())
+                            .map(str::to_owned)
+                    })
+                    .or_else(|| Some(doc.source_url.clone()));
+
+                events.push(CandidateEvent {
+                    source_key: source.config.source.key.clone(),
+                    source_name: source.config.source.name.clone(),
+                    source_event_id: Some(tournament_id.to_string()),
+                    source_url: event_url,
+                    title,
+                    description: Some(description),
+                    time: EventTimeSpec::Date {
+                        start,
+                        end: Some(end),
+                    },
+                    timezone: source.config.source.timezone.clone(),
+                    status: source.config.event.status.clone(),
+                    event_type: source.config.event.event_type.clone(),
+                    subtype: Some("golf_tournament".to_string()),
+                    categories: source.config.event.categories.clone(),
+                    jurisdiction: source.config.source.jurisdiction.clone(),
+                    country: source.config.source.default_country.clone(),
+                    importance: source.config.event.importance,
+                    confidence: Some(0.98),
+                    metadata,
+                });
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+fn extract_next_data_json(html: &str) -> Result<Value> {
+    let marker = r#"<script id="__NEXT_DATA__" type="application/json">"#;
+    let start = html
+        .find(marker)
+        .ok_or_else(|| anyhow!("missing __NEXT_DATA__ script"))?
+        + marker.len();
+    let end = html[start..]
+        .find("</script>")
+        .ok_or_else(|| anyhow!("unterminated __NEXT_DATA__ script"))?
+        + start;
+    serde_json::from_str(&html[start..end]).context("failed to parse __NEXT_DATA__ json")
+}
+
+fn find_pgatour_tournaments(value: &Value) -> Option<&Vec<Value>> {
+    match value {
+        Value::Object(map) => {
+            if let Some(Value::Array(items)) = map.get("tournaments") {
+                if items.first().and_then(Value::as_object).is_some_and(|obj| {
+                    obj.contains_key("tournamentId") && obj.contains_key("displayDate")
+                }) {
+                    return Some(items);
+                }
+            }
+            for child in map.values() {
+                if let Some(found) = find_pgatour_tournaments(child) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        Value::Array(items) => items.iter().find_map(find_pgatour_tournaments),
+        _ => None,
+    }
+}
+
+fn parse_accessible_date_range(year: i32, text: &str) -> Option<(NaiveDate, NaiveDate)> {
+    let re = Regex::new(
+        r"^(?P<start_month>[A-Za-z]+)\s+(?P<start_day>\d{1,2})(?:st|nd|rd|th)\s+through\s+(?:(?P<end_month>[A-Za-z]+)\s+)?(?P<end_day>\d{1,2})(?:st|nd|rd|th)$",
+    )
+    .ok()?;
+    let captures = re.captures(text)?;
+    let start_month = month_name_to_number(captures.name("start_month")?.as_str())?;
+    let start_day = captures.name("start_day")?.as_str().parse::<u32>().ok()?;
+    let end_month = captures
+        .name("end_month")
+        .and_then(|m| month_name_to_number(m.as_str()))
+        .unwrap_or(start_month);
+    let end_day = captures.name("end_day")?.as_str().parse::<u32>().ok()?;
+
+    let start = NaiveDate::from_ymd_opt(year, start_month, start_day)?;
+    let end_year = if end_month < start_month { year + 1 } else { year };
+    let end = NaiveDate::from_ymd_opt(end_year, end_month, end_day)?;
+    Some((start, end))
+}
+
+fn month_name_to_number(name: &str) -> Option<u32> {
+    match name.to_ascii_lowercase().as_str() {
+        "january" => Some(1),
+        "february" => Some(2),
+        "march" => Some(3),
+        "april" => Some(4),
+        "may" => Some(5),
+        "june" => Some(6),
+        "july" => Some(7),
+        "august" => Some(8),
+        "september" => Some(9),
+        "october" => Some(10),
+        "november" => Some(11),
+        "december" => Some(12),
+        _ => None,
+    }
+}
+
+fn normalize_golf_tour_key(source_key: &str) -> String {
+    match source_key {
+        "sports.golf.pga_tour" => "pga_tour".to_string(),
+        "sports.golf.pga_tour_champions" => "pga_tour_champions".to_string(),
+        "sports.golf.korn_ferry" => "korn_ferry".to_string(),
+        "sports.golf.liv" => "liv".to_string(),
+        other => other.replace('.', "_"),
     }
 }
 
