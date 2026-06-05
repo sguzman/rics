@@ -67,6 +67,7 @@ fn run_custom_parser(
         "nfl_operations_schedule_v1" => Box::new(NflOperationsScheduleParser),
         "mls_statsapi_schedule_v1" => Box::new(MlsStatsApiScheduleParser),
         "pgatour_schedule_next_data_v1" => Box::new(PgaTourScheduleNextDataParser),
+        "wikipedia_american_films_v1" => Box::new(WikipediaAmericanFilmsParser),
         _ => return None,
     };
     Some(parser.parse(source, docs))
@@ -2331,6 +2332,175 @@ impl CustomParser for PgaTourScheduleNextDataParser {
     }
 }
 
+struct WikipediaAmericanFilmsParser;
+
+impl CustomParser for WikipediaAmericanFilmsParser {
+    fn key(&self) -> &'static str {
+        "wikipedia_american_films_v1"
+    }
+
+    fn parse(
+        &self,
+        source: &LoadedSource,
+        docs: &[FetchedDocument],
+    ) -> Result<Vec<CandidateEvent>> {
+        let table_selector = Selector::parse("table.wikitable")
+            .map_err(|err| anyhow!("invalid wikipedia table selector: {err}"))?;
+        let row_selector =
+            Selector::parse("tr").map_err(|err| anyhow!("invalid wikipedia row selector: {err}"))?;
+        let cell_selector = Selector::parse("th, td")
+            .map_err(|err| anyhow!("invalid wikipedia cell selector: {err}"))?;
+        let link_selector =
+            Selector::parse("a").map_err(|err| anyhow!("invalid wikipedia link selector: {err}"))?;
+
+        let mut events = Vec::new();
+
+        for doc in docs {
+            let payload: Value = serde_json::from_slice(&doc.body).with_context(|| {
+                format!("failed to parse wikipedia films json from {}", doc.source_url)
+            })?;
+            let Some(html_fragment) = payload.pointer("/parse/text").and_then(Value::as_str) else {
+                continue;
+            };
+            let parsed = Html::parse_fragment(html_fragment);
+            let year = wikipedia_films_year(&doc.source_url, &payload).unwrap_or(Utc::now().year());
+
+            for table in parsed.select(&table_selector) {
+                let rows = table.select(&row_selector).collect::<Vec<_>>();
+                if rows.is_empty() {
+                    continue;
+                }
+
+                let header = rows[0]
+                    .select(&cell_selector)
+                    .map(|cell| cell.text().collect::<String>())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let normalized_header = collapse_whitespace(&header).to_ascii_lowercase();
+                if !(normalized_header.contains("opening") && normalized_header.contains("title")) {
+                    continue;
+                }
+
+                let mut current_month: Option<u32> = None;
+                let mut current_day: Option<u32> = None;
+
+                for row in rows.into_iter().skip(1) {
+                    let cells = row.select(&cell_selector).collect::<Vec<_>>();
+                    if cells.is_empty() {
+                        continue;
+                    }
+
+                    let texts = cells
+                        .iter()
+                        .map(|cell| collapse_whitespace(&cell.text().collect::<String>()))
+                        .collect::<Vec<_>>();
+
+                    let mut index = 0;
+
+                    if let Some(month) = parse_wikipedia_month_label(&texts[index]) {
+                        current_month = Some(month);
+                        current_day = None;
+                        index += 1;
+                    }
+
+                    if index < texts.len() {
+                        if let Some(day) = parse_wikipedia_day_cell(&texts[index]) {
+                            current_day = Some(day);
+                            index += 1;
+                        } else if is_wikipedia_title_cell(&texts[index]) {
+                            // same release day as the previous row
+                        } else {
+                            continue;
+                        }
+                    }
+
+                    if index + 2 >= texts.len() {
+                        continue;
+                    }
+
+                    let title = texts[index].clone();
+                    let production_company = texts[index + 1].clone();
+                    let cast_and_crew = texts[index + 2].clone();
+                    if title.is_empty() || production_company.is_empty() {
+                        continue;
+                    }
+
+                    let time = match (current_month, current_day) {
+                        (Some(month), Some(day)) => EventTimeSpec::Date {
+                            start: NaiveDate::from_ymd_opt(year, month, day).with_context(|| {
+                                format!(
+                                    "invalid wikipedia film release date {year}-{month:02}-{day:02}"
+                                )
+                            })?,
+                            end: None,
+                        },
+                        (Some(month), None) => EventTimeSpec::Month { year, month },
+                        (None, _) => EventTimeSpec::Year { year },
+                    };
+
+                    let source_url = cells[index]
+                        .select(&link_selector)
+                        .find_map(|link| link.value().attr("href"))
+                        .map(wikipedia_absolute_url)
+                        .unwrap_or_else(|| doc.source_url.clone());
+
+                    let description = format!(
+                        "Production company: {production_company}\nCast and crew: {cast_and_crew}"
+                    );
+
+                    let mut metadata = BTreeMap::new();
+                    metadata.insert("country".to_string(), "US".to_string());
+                    metadata.insert("source_class".to_string(), "official".to_string());
+                    metadata.insert("production_company".to_string(), production_company);
+                    metadata.insert("cast_and_crew".to_string(), cast_and_crew);
+                    metadata.insert("custom_parser".to_string(), self.key().to_string());
+                    if let Some(month) = current_month {
+                        metadata.insert("release_month".to_string(), format!("{month:02}"));
+                    }
+                    if let Some(day) = current_day {
+                        metadata.insert("release_day".to_string(), format!("{day:02}"));
+                    }
+
+                    let source_event_id = Some(format!(
+                        "{}|{}|{}",
+                        source.config.source.key,
+                        year,
+                        title
+                    ));
+
+                    let mut categories = source.config.event.categories.clone();
+                    categories.push(source.config.source.domain.clone());
+                    categories.push("us".to_string());
+                    categories.sort();
+                    categories.dedup();
+
+                    events.push(CandidateEvent {
+                        source_key: source.config.source.key.clone(),
+                        source_name: source.config.source.name.clone(),
+                        source_event_id,
+                        source_url: Some(source_url),
+                        title,
+                        description: Some(description),
+                        time,
+                        timezone: source.config.source.timezone.clone(),
+                        status: source.config.event.status.clone(),
+                        event_type: source.config.event.event_type.clone(),
+                        subtype: Some("film_release".to_string()),
+                        categories,
+                        jurisdiction: source.config.source.jurisdiction.clone(),
+                        country: source.config.source.default_country.clone(),
+                        importance: source.config.event.importance,
+                        confidence: Some(0.9),
+                        metadata,
+                    });
+                }
+            }
+        }
+
+        Ok(events)
+    }
+}
+
 fn extract_next_data_json(html: &str) -> Result<Value> {
     let marker = r#"<script id="__NEXT_DATA__" type="application/json">"#;
     let start = html
@@ -2412,6 +2582,64 @@ fn normalize_golf_tour_key(source_key: &str) -> String {
         "sports.golf.liv" => "liv".to_string(),
         other => other.replace('.', "_"),
     }
+}
+
+fn wikipedia_films_year(source_url: &str, payload: &Value) -> Option<i32> {
+    if let Some(title) = payload.pointer("/parse/title").and_then(Value::as_str)
+        && let Some(year) = extract_first_year(title)
+    {
+        return Some(year);
+    }
+    extract_first_year(source_url)
+}
+
+fn extract_first_year(text: &str) -> Option<i32> {
+    let bytes = text.as_bytes();
+    for window in bytes.windows(4) {
+        if window.iter().all(u8::is_ascii_digit)
+            && let Ok(year_text) = std::str::from_utf8(window)
+            && let Ok(year) = year_text.parse::<i32>()
+        {
+            return Some(year);
+        }
+    }
+    None
+}
+
+fn parse_wikipedia_month_label(text: &str) -> Option<u32> {
+    let compact = text
+        .chars()
+        .filter(|ch| ch.is_ascii_alphabetic())
+        .collect::<String>();
+    month_name_to_number(&compact)
+}
+
+fn parse_wikipedia_day_cell(text: &str) -> Option<u32> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
+        return trimmed.parse::<u32>().ok();
+    }
+    None
+}
+
+fn is_wikipedia_title_cell(text: &str) -> bool {
+    let trimmed = text.trim();
+    !trimmed.is_empty() && !trimmed.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn wikipedia_absolute_url(href: &str) -> String {
+    if href.starts_with("http://") || href.starts_with("https://") {
+        href.to_string()
+    } else {
+        format!("https://en.wikipedia.org{href}")
+    }
+}
+
+fn collapse_whitespace(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn normalize_nfl_matchup(matchup: &str) -> (String, BTreeMap<String, String>) {
