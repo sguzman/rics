@@ -3,7 +3,7 @@ key = "cities.us.san_diego"
 name = "San Diego"
 domain = "cities"
 enabled = true
-timezone = "UTC"
+timezone = "America/Los_Angeles"
 jurisdiction = "US-CA-SD"
 default_country = "US"
 
@@ -20,7 +20,7 @@ format = "text"
 [date]
 primary = "date"
 formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
-assume_timezone = "UTC"
+assume_timezone = "America/Los_Angeles"
 allow_month_only = true
 allow_year_only = true
 

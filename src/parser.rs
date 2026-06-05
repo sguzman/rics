@@ -1955,7 +1955,11 @@ impl CustomParser for NflOperationsScheduleParser {
                                     matchup
                                 )),
                             }
-                        } else if let Some(start) = parse_nfl_datetime(&date_label, &kickoff)? {
+                        } else if let Some(start) = parse_nfl_datetime(
+                            &date_label,
+                            &kickoff,
+                            source.config.source.timezone.as_deref(),
+                        )? {
                             EventTimeSpec::DateTime { start, end: None }
                         } else {
                             EventTimeSpec::Tbd {
@@ -2658,7 +2662,11 @@ fn normalize_nfl_matchup(matchup: &str) -> (String, BTreeMap<String, String>) {
     (format!("NFL: {}", matchup), metadata)
 }
 
-fn parse_nfl_datetime(date_label: &str, kickoff: &str) -> Result<Option<DateTime<Utc>>> {
+fn parse_nfl_datetime(
+    date_label: &str,
+    kickoff: &str,
+    timezone: Option<&str>,
+) -> Result<Option<DateTime<Utc>>> {
     let normalized_date = date_label
         .replace("Sept.", "Sep.")
         .replace("Sept ", "Sep ");
@@ -2690,8 +2698,10 @@ fn parse_nfl_datetime(date_label: &str, kickoff: &str) -> Result<Option<DateTime
     let naive = date
         .and_hms_opt(hour, minute, 0)
         .ok_or_else(|| anyhow!("invalid nfl time {clean_time}"))?;
-    let eastern: Tz = chrono_tz::US::Eastern;
-    let local = eastern
+    let tz = timezone
+        .and_then(|tz_name| tz_name.parse::<Tz>().ok())
+        .unwrap_or(chrono_tz::US::Eastern);
+    let local = tz
         .from_local_datetime(&naive)
         .single()
         .ok_or_else(|| anyhow!("ambiguous nfl local datetime {naive}"))?;
@@ -2750,6 +2760,18 @@ fn parse_structured_elections_feed(
                 if actual != expected {
                     continue;
                 }
+            }
+
+            if parser_requires_explicit_timezone_for_naive_datetime(
+                start_raw,
+                fields.get("end").map(String::as_str),
+                source.config.source.timezone.as_deref(),
+            ) {
+                return Err(anyhow!(
+                    "structured feed source {} contains a naive datetime '{}' without a non-UTC source timezone",
+                    source.config.source.key,
+                    start_raw
+                ));
             }
 
             let time = if start_raw.eq_ignore_ascii_case("tbd") {
@@ -2885,6 +2907,46 @@ fn combine_date_time(
     }
 
     Ok(Some(Utc.from_utc_datetime(&naive)))
+}
+
+fn parser_requires_explicit_timezone_for_naive_datetime(
+    start_raw: &str,
+    end_raw: Option<&str>,
+    timezone: Option<&str>,
+) -> bool {
+    if !looks_like_naive_datetime_literal(start_raw)
+        && !end_raw.is_some_and(looks_like_naive_datetime_literal)
+    {
+        return false;
+    }
+
+    match timezone.map(str::trim) {
+        None => true,
+        Some(tz) if tz.eq_ignore_ascii_case("UTC") => true,
+        Some(_) => false,
+    }
+}
+
+fn looks_like_naive_datetime_literal(raw: &str) -> bool {
+    let value = raw.trim();
+    if value.is_empty() {
+        return false;
+    }
+    if value.ends_with('Z') {
+        return false;
+    }
+    if Regex::new(r"[+-]\d{2}:\d{2}$")
+        .ok()
+        .is_some_and(|re| re.is_match(value))
+    {
+        return false;
+    }
+
+    Regex::new(
+        r"(?i)(\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(:\d{2})?)|(\d{4}/\d{2}/\d{2}[ T]\d{1,2}:\d{2})|([A-Z][a-z]{2,8}\s+\d{1,2},\s+\d{4}\s+\d{1,2}:\d{2}\s*[AP]M)",
+    )
+    .ok()
+    .is_some_and(|re| re.is_match(value))
 }
 
 fn build_econ_description(

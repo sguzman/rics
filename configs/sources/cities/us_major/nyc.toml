@@ -3,7 +3,7 @@ key = "cities.us.nyc"
 name = "New York City"
 domain = "cities"
 enabled = true
-timezone = "UTC"
+timezone = "America/New_York"
 jurisdiction = "US-NY-NYC"
 default_country = "US"
 
@@ -20,7 +20,7 @@ format = "text"
 [date]
 primary = "date"
 formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M", "%B %d, %Y", "%b %d, %Y", "%Y"]
-assume_timezone = "UTC"
+assume_timezone = "America/New_York"
 allow_month_only = true
 allow_year_only = true
 

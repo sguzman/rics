@@ -3,7 +3,7 @@ key = "sports.us.nfl.schedule"
 name = "NFL Schedule"
 domain = "sports"
 enabled = true
-timezone = "UTC"
+timezone = "America/New_York"
 jurisdiction = "US"
 default_country = "US"
 
@@ -20,7 +20,7 @@ format = "html"
 [date]
 primary = "date"
 formats = ["%Y-%m-%d", "%Y"]
-assume_timezone = "UTC"
+assume_timezone = "America/New_York"
 allow_month_only = true
 allow_year_only = true
 
