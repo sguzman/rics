@@ -1,0 +1,9 @@
+[bundle]
+key = "card_games.competitive"
+name = "Competitive Card Games"
+
+[include]
+source_patterns = ["card_games.*"]
+
+[publish]
+file_name_template = "card-games-{{year}}.ics"

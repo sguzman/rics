@@ -1,0 +1,37 @@
+[source]
+key = "card_games.flesh_and_blood"
+name = "Flesh and Blood Organized Play"
+domain = "card_games"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/card_games/competitive/flesh_and_blood.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "card_game_event"
+status = "scheduled"
+categories = ["card_games", "competitive", "flesh_and_blood", "tabletop"]
+importance = 84
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "card-games-flesh-and-blood-{{year}}.ics"
