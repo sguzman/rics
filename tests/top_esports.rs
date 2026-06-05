@@ -11,7 +11,7 @@ fn top_esports_sources_validate_and_have_expected_keys() -> Result<()> {
     let sources = load_sources_from_dir(&root.join("configs/sources/esports"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
-    assert_eq!(sources.len(), 15);
+    assert_eq!(sources.len(), 17);
     assert!(bundles
         .iter()
         .any(|bundle| bundle.config.bundle.key == "esports.top_titles"));
@@ -32,6 +32,8 @@ fn top_esports_sources_validate_and_have_expected_keys() -> Result<()> {
     assert!(keys.contains(&"esports.multi_organizer.counter_strike_2"));
     assert!(keys.contains(&"esports.open_circuit.dota_2"));
     assert!(keys.contains(&"esports.open_circuit.pubg"));
+    assert!(keys.contains(&"esports.community.smash_ultimate"));
+    assert!(keys.contains(&"esports.community.smash_melee"));
     Ok(())
 }
 
