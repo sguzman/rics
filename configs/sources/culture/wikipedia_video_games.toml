@@ -1,0 +1,40 @@
+[source]
+key = "games.wikipedia.releases"
+name = "Video Game Releases"
+domain = "games"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "http"
+base_url = "https://en.wikipedia.org/w/api.php?action=parse&page=List_of_video_games_released_in_{{current_year}}&prop=text&formatversion=2&format=json"
+method = "GET"
+headers = { accept = "application/json,text/html;q=0.9,*/*;q=0.8" }
+timeout_secs = 20
+retry_attempts = 2
+retry_backoff_ms = 250
+user_agent = "rics-calendar-bot/1.0 (https://en.wikipedia.org/wiki/List_of_video_games_released_in_{{current_year}})"
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "video_game_release"
+status = "scheduled"
+categories = ["culture", "games", "wikipedia", "video_games"]
+importance = 60
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "video-games-{{year}}.ics"

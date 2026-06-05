@@ -35,7 +35,7 @@ importance = 60
 
 [custom]
 enabled = true
-parser = "wikipedia_american_films_v1"
+parser = "wikipedia_release_table_v1"
 
 [publish]
 file_name_template = "american-films-us-{{year}}.ics"

@@ -7,22 +7,20 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 #[test]
-fn wikipedia_film_source_validates_and_has_expected_key() -> Result<()> {
+fn wikipedia_video_game_source_validates_and_has_expected_key() -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let sources = load_sources_from_dir(&root.join("configs/sources/culture"))?;
 
-    assert_eq!(sources.len(), 2);
     let keys = sources
         .into_iter()
         .map(|source| source.config.source.key)
         .collect::<HashSet<_>>();
-    assert!(keys.contains("films.us.wikipedia.american"));
     assert!(keys.contains("games.wikipedia.releases"));
     Ok(())
 }
 
 #[test]
-fn wikipedia_film_parser_builds_calendar_from_api_payload() -> Result<()> {
+fn wikipedia_video_game_parser_builds_calendar_from_api_payload() -> Result<()> {
     let env = setup_temp_env()?;
 
     let reports = sync_sources(&SyncOptions {
@@ -38,15 +36,17 @@ fn wikipedia_film_parser_builds_calendar_from_api_payload() -> Result<()> {
     let out_file = env
         .out_dir
         .join("sources")
-        .join("films-us-wikipedia-american")
-        .join("american-films-us-2026.ics");
+        .join("games-wikipedia-releases")
+        .join("video-games-2026.ics");
     assert!(out_file.exists());
 
     let content = fs::read_to_string(out_file)?;
-    assert!(content.contains("SUMMARY:Example Film One"));
-    assert!(content.contains("SUMMARY:Example Film Two"));
-    assert!(content.contains("DTSTART;VALUE=DATE:20260102"));
-    assert!(content.contains("DTSTART;VALUE=DATE:20260109"));
+    assert!(content.contains("SUMMARY:Example Game One"));
+    assert!(content.contains("SUMMARY:Example Game Two"));
+    assert!(content.contains("DTSTART;VALUE=DATE:20260105"));
+    assert!(content.contains("DTSTART;VALUE=DATE:20260402"));
+    assert!(content.contains("X-RICS-DEVELOPER-S:Studio One"));
+    assert!(content.contains("X-RICS-WIKIPEDIA-SCHEMA:video_games"));
 
     Ok(())
 }
@@ -66,19 +66,18 @@ fn setup_temp_env() -> Result<TempEnv> {
     fs::create_dir_all(&data_dir)?;
 
     fs::write(
-        config_dir.join("wikipedia_american_films.toml"),
+        config_dir.join("wikipedia_video_games.toml"),
         r#"[source]
-key = "films.us.wikipedia.american"
-name = "American Film Releases"
-domain = "films"
+key = "games.wikipedia.releases"
+name = "Video Game Releases"
+domain = "games"
 enabled = true
 timezone = "UTC"
-jurisdiction = "US"
-default_country = "US"
+jurisdiction = "GLOBAL"
 
 [fetch]
 mode = "file"
-file_path = "../data/films.json"
+file_path = "../data/games.json"
 timeout_secs = 10
 retry_attempts = 1
 retry_backoff_ms = 10
@@ -94,26 +93,26 @@ allow_month_only = true
 allow_year_only = true
 
 [event]
-event_type = "film_release"
+event_type = "video_game_release"
 status = "scheduled"
-categories = ["culture", "films", "wikipedia", "american_films"]
+categories = ["culture", "games", "wikipedia", "video_games"]
 importance = 60
 
 [custom]
 enabled = true
-parser = "wikipedia_american_films_v1"
+parser = "wikipedia_release_table_v1"
 
 [publish]
-file_name_template = "american-films-us-{{year}}.ics"
+file_name_template = "video-games-{{year}}.ics"
 "#,
     )?;
 
     fs::write(
-        data_dir.join("films.json"),
+        data_dir.join("games.json"),
         r#"{
   "parse": {
-    "title": "List of American films of 2026",
-    "text": "<h2><span id=\"January.E2.80.93March\">January–March</span></h2><table class=\"wikitable\"><tr><th>Opening</th><th>Title</th><th>Production company</th><th>Cast and crew</th><th>Ref.</th></tr><tr><td>J A N U A R Y</td><td>2</td><td><a href=\"/wiki/Example_Film_One\">Example Film One</a></td><td>Example Studio</td><td>Jane Doe (director); Actor One, Actor Two</td><td>[1]</td></tr><tr><td>9</td><td><a href=\"/wiki/Example_Film_Two\">Example Film Two</a></td><td>Another Studio</td><td>John Doe (director); Actor Three</td><td>[2]</td></tr></table>"
+    "title": "List of video games released in 2026",
+    "text": "<h2><span id=\"January.E2.80.93March\">January–March</span></h2><table class=\"wikitable\"><tr><th>Release date</th><th>Title</th><th>Platform(s)</th><th>Type(s)</th><th>Genre(s)</th><th>Developer(s)</th><th>Publisher(s)</th><th>Ref.</th></tr><tr><td>January 5</td><td><a href=\"/wiki/Example_Game_One\">Example Game One</a></td><td>WIN, PS5</td><td>Original</td><td>RPG</td><td>Studio One</td><td>Publisher One</td><td>[1]</td></tr><tr><td>April 2</td><td><a href=\"/wiki/Example_Game_Two\">Example Game Two</a></td><td>NS2</td><td>Port</td><td>Action-adventure</td><td>Studio Two</td><td>Publisher Two</td><td>[2]</td></tr></table>"
   }
 }"#,
     )?;
