@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rics.local/schemas/rics-snapshot.schema.json",
+  "title": "rics snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "state_schema_version",
+    "stats",
+    "sources",
+    "bundles",
+    "calendars",
+    "events",
+    "indexes"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "state_schema_version": { "type": "integer", "minimum": 1 },
+    "stats": { "$ref": "#/$defs/stats" },
+    "sources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/source" }
+    },
+    "bundles": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/bundle" }
+    },
+    "calendars": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/calendar" }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/event" }
+    },
+    "indexes": { "$ref": "#/$defs/indexes" }
+  },
+  "$defs": {
+    "string_array": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "int_array": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "uniqueItems": true
+    },
+    "string_map_array": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/string_array" }
+    },
+    "facet_map": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/string_array" }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_count",
+        "bundle_count",
+        "calendar_count",
+        "event_count",
+        "cancelled_event_count",
+        "years",
+        "tag_count",
+        "ontology_path_count",
+        "domain_count",
+        "country_count"
+      ],
+      "properties": {
+        "source_count": { "type": "integer", "minimum": 0 },
+        "bundle_count": { "type": "integer", "minimum": 0 },
+        "calendar_count": { "type": "integer", "minimum": 0 },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "cancelled_event_count": { "type": "integer", "minimum": 0 },
+        "years": { "$ref": "#/$defs/int_array" },
+        "tag_count": { "type": "integer", "minimum": 0 },
+        "ontology_path_count": { "type": "integer", "minimum": 0 },
+        "domain_count": { "type": "integer", "minimum": 0 },
+        "country_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "name",
+        "domain",
+        "config_path",
+        "categories",
+        "event_type",
+        "split_by_country",
+        "tags",
+        "ontology_paths"
+      ],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "domain": { "type": "string" },
+        "timezone": { "type": ["string", "null"] },
+        "jurisdiction": { "type": ["string", "null"] },
+        "default_country": { "type": ["string", "null"] },
+        "config_path": { "type": "string" },
+        "categories": { "$ref": "#/$defs/string_array" },
+        "event_type": { "type": "string" },
+        "subtype": { "type": ["string", "null"] },
+        "split_by_country": { "type": "boolean" },
+        "tags": { "$ref": "#/$defs/string_array" },
+        "ontology_paths": { "$ref": "#/$defs/string_array" }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "name",
+        "source_patterns",
+        "config_path",
+        "tags",
+        "ontology_paths"
+      ],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "source_patterns": { "$ref": "#/$defs/string_array" },
+        "config_path": { "type": "string" },
+        "tags": { "$ref": "#/$defs/string_array" },
+        "ontology_paths": { "$ref": "#/$defs/string_array" }
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "origin_key",
+        "name",
+        "tags",
+        "ontology_paths",
+        "facets",
+        "years",
+        "event_ids_by_year",
+        "undated_event_ids",
+        "event_count",
+        "ics_files"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["source", "bundle"] },
+        "origin_key": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "tags": { "$ref": "#/$defs/string_array" },
+        "ontology_paths": { "$ref": "#/$defs/string_array" },
+        "facets": { "$ref": "#/$defs/facet_map" },
+        "years": { "$ref": "#/$defs/int_array" },
+        "event_ids_by_year": { "$ref": "#/$defs/string_map_array" },
+        "undated_event_ids": { "$ref": "#/$defs/string_array" },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "ics_files": { "$ref": "#/$defs/string_map_array" }
+      }
+    },
+    "event_time": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "start", "end"],
+          "properties": {
+            "kind": { "const": "date_time" },
+            "start": { "type": "string", "format": "date-time" },
+            "end": { "type": ["string", "null"], "format": "date-time" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "start", "end"],
+          "properties": {
+            "kind": { "const": "date" },
+            "start": { "type": "string", "format": "date" },
+            "end": { "type": ["string", "null"], "format": "date" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "year", "month"],
+          "properties": {
+            "kind": { "const": "month" },
+            "year": { "type": "integer" },
+            "month": { "type": "integer", "minimum": 1, "maximum": 12 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "year", "quarter"],
+          "properties": {
+            "kind": { "const": "quarter" },
+            "year": { "type": "integer" },
+            "quarter": { "type": "integer", "minimum": 1, "maximum": 4 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "year"],
+          "properties": {
+            "kind": { "const": "year" },
+            "year": { "type": "integer" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "note"],
+          "properties": {
+            "kind": { "const": "tbd" },
+            "note": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uid",
+        "source_key",
+        "source_name",
+        "title",
+        "time",
+        "status",
+        "event_type",
+        "categories",
+        "metadata",
+        "sequence",
+        "revision_hash",
+        "created_at",
+        "last_modified",
+        "last_seen_at",
+        "year_bucket",
+        "time_precision",
+        "is_cancelled",
+        "calendar_ids",
+        "tags",
+        "ontology_paths",
+        "facets"
+      ],
+      "properties": {
+        "uid": { "type": "string" },
+        "source_key": { "type": "string" },
+        "source_name": { "type": "string" },
+        "source_event_id": { "type": ["string", "null"] },
+        "source_url": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "time": { "$ref": "#/$defs/event_time" },
+        "timezone": { "type": ["string", "null"] },
+        "status": { "type": "string" },
+        "event_type": { "type": "string" },
+        "subtype": { "type": ["string", "null"] },
+        "categories": { "$ref": "#/$defs/string_array" },
+        "jurisdiction": { "type": ["string", "null"] },
+        "country": { "type": ["string", "null"] },
+        "importance": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+        "confidence": { "type": ["number", "null"] },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "revision_hash": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "last_modified": { "type": "string", "format": "date-time" },
+        "last_seen_at": { "type": "string", "format": "date-time" },
+        "year_bucket": { "type": ["integer", "null"] },
+        "time_precision": { "type": "string" },
+        "is_cancelled": { "type": "boolean" },
+        "calendar_ids": { "$ref": "#/$defs/string_array" },
+        "tags": { "$ref": "#/$defs/string_array" },
+        "ontology_paths": { "$ref": "#/$defs/string_array" },
+        "facets": { "$ref": "#/$defs/facet_map" }
+      }
+    },
+    "index_membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_ids", "calendar_ids"],
+      "properties": {
+        "event_ids": { "$ref": "#/$defs/string_array" },
+        "calendar_ids": { "$ref": "#/$defs/string_array" }
+      }
+    },
+    "indexes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["years", "tags", "ontology_paths", "countries", "domains", "undated"],
+      "properties": {
+        "years": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/index_membership" }
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/index_membership" }
+        },
+        "ontology_paths": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/index_membership" }
+        },
+        "countries": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/index_membership" }
+        },
+        "domains": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/index_membership" }
+        },
+        "undated": { "$ref": "#/$defs/index_membership" }
+      }
+    }
+  }
+}

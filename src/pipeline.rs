@@ -5,6 +5,7 @@ use crate::fetch::fetch_source_documents;
 use crate::ics::{write_named_year_calendar, write_source_year_calendar};
 use crate::model::{CandidateEvent, EventRecord, SourceRunReport, State};
 use crate::parser::parse_source_events;
+use crate::snapshot::export_snapshot;
 use crate::store::{load_state, save_state};
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
@@ -97,12 +98,10 @@ pub fn sync_sources(options: &SyncOptions) -> Result<Vec<SourceRunReport>> {
     }
 
     if !options.dry_run {
-        rebuild_bundles(
-            &state,
-            &load_optional_bundles(&options.config_dir)?,
-            &options.out_dir,
-            None,
-        )?;
+        let bundles = load_optional_bundles(&options.config_dir)?;
+        rebuild_bundles(&state, &bundles, &options.out_dir, None)?;
+        let all_sources = load_sources_from_dir(&options.config_dir)?;
+        export_snapshot(&state, &all_sources, &bundles, &options.out_dir)?;
         save_state(&options.state_path, &state)?;
         info!(state = %options.state_path.display(), "state written");
     } else {
@@ -125,12 +124,10 @@ pub fn build_calendars(options: &BuildOptions) -> Result<()> {
     for source in sources {
         rebuild_source_calendars(&state, &source, &options.out_dir, options.year, None)?;
     }
-    rebuild_bundles(
-        &state,
-        &load_optional_bundles(&options.config_dir)?,
-        &options.out_dir,
-        options.year,
-    )?;
+    let bundles = load_optional_bundles(&options.config_dir)?;
+    rebuild_bundles(&state, &bundles, &options.out_dir, options.year)?;
+    let all_sources = load_sources_from_dir(&options.config_dir)?;
+    export_snapshot(&state, &all_sources, &bundles, &options.out_dir)?;
 
     Ok(())
 }
