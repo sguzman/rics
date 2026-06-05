@@ -1,0 +1,2 @@
+# Teamfight Tactics
+2026-03-27 | Lore and Legends Tactician's Crown | end=2026-03-29 | subtype=world_championship | title=Tactician's Crown | game=teamfight_tactics | circuit=tft_esports | phase=international | source_class=official | source_event_id=tft-tacticians-crown-2026-03 | source_url=https://teamfighttactics.leagueoflegends.com/es-es/news/announcements/lore-legends-tacticians-crown-announcement/ | description=The Lore and Legends Tactician's Crown brings together 40 players from March 27 through March 29.

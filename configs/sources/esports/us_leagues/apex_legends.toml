@@ -1,0 +1,36 @@
+[source]
+key = "esports.us_leagues.apex_legends"
+name = "Apex Legends Global Series"
+domain = "esports"
+enabled = true
+timezone = "UTC"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/esports/us_leagues/apex_legends.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "esports_event"
+status = "scheduled"
+categories = ["esports", "us_leagues", "apex_legends"]
+importance = 84
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "esports-apex-legends-{{year}}.ics"

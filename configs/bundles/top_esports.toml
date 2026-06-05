@@ -1,0 +1,9 @@
+[bundle]
+key = "esports.top_titles"
+name = "Top Esports"
+
+[include]
+source_patterns = ["esports.*"]
+
+[publish]
+file_name_template = "top-esports-{{year}}.ics"
