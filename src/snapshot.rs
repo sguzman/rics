@@ -165,8 +165,11 @@ pub fn export_snapshot(
         .with_context(|| format!("failed to create snapshot dir {}", snapshots_dir.display()))?;
 
     let snapshot_path = snapshots_dir.join(SNAPSHOT_OUTPUT_FILE);
-    fs::write(&snapshot_path, serde_json::to_string_pretty(&snapshot)? + "\n")
-        .with_context(|| format!("failed to write snapshot {}", snapshot_path.display()))?;
+    fs::write(
+        &snapshot_path,
+        serde_json::to_string_pretty(&snapshot)? + "\n",
+    )
+    .with_context(|| format!("failed to write snapshot {}", snapshot_path.display()))?;
 
     let schema_output = snapshots_dir.join(SNAPSHOT_OUTPUT_SCHEMA_FILE);
     fs::copy(&schema_path, &schema_output).with_context(|| {
@@ -263,7 +266,11 @@ fn build_snapshot_document(
         add_path(&mut ontology, "domain", [domain.as_str()]);
         add_path(&mut ontology, "semantic", [event.event_type.as_str()]);
         if let Some(subtype) = event.subtype.as_deref() {
-            add_path(&mut ontology, "semantic", [event.event_type.as_str(), subtype]);
+            add_path(
+                &mut ontology,
+                "semantic",
+                [event.event_type.as_str(), subtype],
+            );
         }
         if let Some(country) = event.country.as_deref() {
             add_path(&mut ontology, "geo", [country]);
@@ -319,7 +326,12 @@ fn build_snapshot_document(
             let country = event
                 .country
                 .clone()
-                .or_else(|| default_country_by_key.get(&event.source_key).cloned().flatten())
+                .or_else(|| {
+                    default_country_by_key
+                        .get(&event.source_key)
+                        .cloned()
+                        .flatten()
+                })
                 .unwrap_or_else(|| "xx".to_string())
                 .to_ascii_lowercase();
             format!("source:{}:country:{country}", event.source_key)
@@ -345,8 +357,10 @@ fn build_snapshot_document(
             .entry(calendar_id.clone())
             .or_insert_with(|| ("bundle".to_string(), bundle.config.bundle.key.clone()));
         for event in state.events.values() {
-            if source_key_matches_any_pattern(&event.source_key, &bundle.config.include.source_patterns)
-            {
+            if source_key_matches_any_pattern(
+                &event.source_key,
+                &bundle.config.include.source_patterns,
+            ) {
                 event_to_calendars
                     .entry(event.uid.clone())
                     .or_default()
@@ -388,7 +402,12 @@ fn build_snapshot_document(
             insert_index_membership(&mut ontology_index, path, &event.uid, &calendar_ids);
         }
         if let Some(year) = year_bucket {
-            insert_index_membership(&mut year_index, &year.to_string(), &event.uid, &calendar_ids);
+            insert_index_membership(
+                &mut year_index,
+                &year.to_string(),
+                &event.uid,
+                &calendar_ids,
+            );
         } else {
             undated_index.event_ids.push(event.uid.clone());
             extend_unique(&mut undated_index.calendar_ids, calendar_ids.clone());
@@ -399,12 +418,7 @@ fn build_snapshot_document(
             &event.uid,
             &calendar_ids,
         );
-        insert_index_membership(
-            &mut domain_index,
-            &domain,
-            &event.uid,
-            &calendar_ids,
-        );
+        insert_index_membership(&mut domain_index, &domain, &event.uid, &calendar_ids);
 
         events_out.insert(
             event.uid.clone(),
@@ -500,12 +514,13 @@ fn build_snapshot_document(
             &origin_key,
             &years,
             source_lookup.get(&origin_key).copied(),
-            bundles.iter().find(|bundle| bundle.config.bundle.key == origin_key),
+            bundles
+                .iter()
+                .find(|bundle| bundle.config.bundle.key == origin_key),
         );
 
         let (name, description) = if kind == "source" {
-            let source = source_lookup
-                .get(&origin_key);
+            let source = source_lookup.get(&origin_key);
             if let Some(country) = calendar_id.split(":country:").nth(1) {
                 (
                     format!(
@@ -614,7 +629,10 @@ fn build_snapshot_document(
         bundle_count: bundles_out.len(),
         calendar_count: calendars_out.len(),
         event_count: events_out.len(),
-        cancelled_event_count: events_out.values().filter(|event| event.is_cancelled).count(),
+        cancelled_event_count: events_out
+            .values()
+            .filter(|event| event.is_cancelled)
+            .count(),
         years: sorted_unique(
             events_out
                 .values()
@@ -672,7 +690,11 @@ fn derive_source_tags_and_paths(
 
     add_path(ontology, "source", source.config.source.key.split('.'));
     add_path(ontology, "domain", [source.config.source.domain.as_str()]);
-    add_path(ontology, "semantic", [source.config.event.event_type.as_str()]);
+    add_path(
+        ontology,
+        "semantic",
+        [source.config.event.event_type.as_str()],
+    );
     if let Some(subtype) = source.config.event.subtype.as_deref() {
         add_path(
             ontology,
@@ -729,7 +751,11 @@ fn derive_ontology_for_event(event: &EventRecord, domain: &str) -> Vec<String> {
     add_path(&mut ontology, "domain", [domain]);
     add_path(&mut ontology, "semantic", [event.event_type.as_str()]);
     if let Some(subtype) = event.subtype.as_deref() {
-        add_path(&mut ontology, "semantic", [event.event_type.as_str(), subtype]);
+        add_path(
+            &mut ontology,
+            "semantic",
+            [event.event_type.as_str(), subtype],
+        );
     }
     if let Some(country) = event.country.as_deref() {
         add_path(&mut ontology, "geo", [country]);
@@ -906,13 +932,14 @@ where
 
 fn insert_facet(facets: &mut BTreeMap<String, BTreeSet<String>>, key: &str, value: &str) {
     if let Some(normalized) = normalize_tag(value) {
-        facets.entry(key.to_string()).or_default().insert(normalized);
+        facets
+            .entry(key.to_string())
+            .or_default()
+            .insert(normalized);
     }
 }
 
-fn finalize_facet_map(
-    facets: BTreeMap<String, BTreeSet<String>>,
-) -> BTreeMap<String, Vec<String>> {
+fn finalize_facet_map(facets: BTreeMap<String, BTreeSet<String>>) -> BTreeMap<String, Vec<String>> {
     facets
         .into_iter()
         .map(|(key, values)| (key, values.into_iter().collect::<Vec<_>>()))

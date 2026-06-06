@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;

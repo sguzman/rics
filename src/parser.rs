@@ -1509,12 +1509,11 @@ impl CustomParser for UsStateElectionsFeedParser {
             source,
             docs,
             Some("state"),
-            source
+            source.config.source.default_country.as_deref().or(source
                 .config
                 .source
-                .default_country
-                .as_deref()
-                .or(source.config.source.jurisdiction.as_deref()),
+                .jurisdiction
+                .as_deref()),
         )
     }
 }
@@ -1534,8 +1533,9 @@ impl CustomParser for MlbStatsApiScheduleParser {
         let mut events = Vec::new();
 
         for doc in docs {
-            let payload: Value = serde_json::from_slice(&doc.body)
-                .with_context(|| format!("failed to parse mlb schedule json from {}", doc.source_url))?;
+            let payload: Value = serde_json::from_slice(&doc.body).with_context(|| {
+                format!("failed to parse mlb schedule json from {}", doc.source_url)
+            })?;
             let Some(dates) = payload.get("dates").and_then(Value::as_array) else {
                 continue;
             };
@@ -1552,7 +1552,9 @@ impl CustomParser for MlbStatsApiScheduleParser {
                     let Some(game_date_raw) = game.get("gameDate").and_then(Value::as_str) else {
                         continue;
                     };
-                    let Ok(start) = DateTime::parse_from_rfc3339(game_date_raw).map(|dt| dt.with_timezone(&Utc)) else {
+                    let Ok(start) = DateTime::parse_from_rfc3339(game_date_raw)
+                        .map(|dt| dt.with_timezone(&Utc))
+                    else {
                         continue;
                     };
 
@@ -1572,10 +1574,7 @@ impl CustomParser for MlbStatsApiScheduleParser {
                         .get("seriesDescription")
                         .and_then(Value::as_str)
                         .unwrap_or("MLB");
-                    let game_type = game
-                        .get("gameType")
-                        .and_then(Value::as_str)
-                        .unwrap_or("R");
+                    let game_type = game.get("gameType").and_then(Value::as_str).unwrap_or("R");
                     let subtype = match game_type {
                         "S" => "preseason_game",
                         "R" => "regular_season_game",
@@ -1649,7 +1648,9 @@ impl CustomParser for NhlScheduleApiParser {
         };
 
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(source.config.fetch.timeout_secs.max(30)))
+            .timeout(std::time::Duration::from_secs(
+                source.config.fetch.timeout_secs.max(30),
+            ))
             .build()
             .context("failed to build nhl api client")?;
 
@@ -1681,10 +1682,13 @@ impl CustomParser for NhlScheduleApiParser {
                         let Some(game_id) = game.get("id").and_then(Value::as_i64) else {
                             continue;
                         };
-                        let Some(start_raw) = game.get("startTimeUTC").and_then(Value::as_str) else {
+                        let Some(start_raw) = game.get("startTimeUTC").and_then(Value::as_str)
+                        else {
                             continue;
                         };
-                        let Ok(start) = DateTime::parse_from_rfc3339(start_raw).map(|dt| dt.with_timezone(&Utc)) else {
+                        let Ok(start) = DateTime::parse_from_rfc3339(start_raw)
+                            .map(|dt| dt.with_timezone(&Utc))
+                        else {
                             continue;
                         };
 
@@ -1796,8 +1800,9 @@ impl CustomParser for NbaFullScheduleParser {
         let mut events = Vec::new();
 
         for doc in docs {
-            let payload: Value = serde_json::from_slice(&doc.body)
-                .with_context(|| format!("failed to parse nba schedule json from {}", doc.source_url))?;
+            let payload: Value = serde_json::from_slice(&doc.body).with_context(|| {
+                format!("failed to parse nba schedule json from {}", doc.source_url)
+            })?;
             let Some(months) = payload.get("lscd").and_then(Value::as_array) else {
                 continue;
             };
@@ -1817,17 +1822,37 @@ impl CustomParser for NbaFullScheduleParser {
                     let Some(utc_time_raw) = game.get("utctm").and_then(Value::as_str) else {
                         continue;
                     };
-                    let Ok(start) = DateTime::parse_from_rfc3339(&format!("{date_raw}T{utc_time_raw}:00Z"))
-                        .map(|dt| dt.with_timezone(&Utc)) else {
+                    let Ok(start) =
+                        DateTime::parse_from_rfc3339(&format!("{date_raw}T{utc_time_raw}:00Z"))
+                            .map(|dt| dt.with_timezone(&Utc))
+                    else {
                         continue;
                     };
 
-                    let away_city = game.pointer("/v/tc").and_then(Value::as_str).unwrap_or("Away");
-                    let away_name = game.pointer("/v/tn").and_then(Value::as_str).unwrap_or("Team");
-                    let home_city = game.pointer("/h/tc").and_then(Value::as_str).unwrap_or("Home");
-                    let home_name = game.pointer("/h/tn").and_then(Value::as_str).unwrap_or("Team");
-                    let venue = game.get("an").and_then(Value::as_str).unwrap_or("Unknown venue");
-                    let title = format!("NBA: {} {} at {} {}", away_city, away_name, home_city, home_name);
+                    let away_city = game
+                        .pointer("/v/tc")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Away");
+                    let away_name = game
+                        .pointer("/v/tn")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Team");
+                    let home_city = game
+                        .pointer("/h/tc")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Home");
+                    let home_name = game
+                        .pointer("/h/tn")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Team");
+                    let venue = game
+                        .get("an")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Unknown venue");
+                    let title = format!(
+                        "NBA: {} {} at {} {}",
+                        away_city, away_name, home_city, home_name
+                    );
                     let status_code = game.get("st").and_then(Value::as_str).unwrap_or("1");
                     let subtype = match status_code {
                         "1" | "2" | "3" => "regular_season_game",
@@ -1836,8 +1861,14 @@ impl CustomParser for NbaFullScheduleParser {
 
                     let mut metadata = BTreeMap::new();
                     metadata.insert("league".to_string(), "nba".to_string());
-                    metadata.insert("away_team".to_string(), format!("{} {}", away_city, away_name));
-                    metadata.insert("home_team".to_string(), format!("{} {}", home_city, home_name));
+                    metadata.insert(
+                        "away_team".to_string(),
+                        format!("{} {}", away_city, away_name),
+                    );
+                    metadata.insert(
+                        "home_team".to_string(),
+                        format!("{} {}", home_city, home_name),
+                    );
                     metadata.insert("venue".to_string(), venue.to_string());
                     metadata.insert("custom_parser".to_string(), self.key().to_string());
                     if let Some(pretty) = game.get("stt").and_then(Value::as_str) {
@@ -1904,14 +1935,16 @@ impl CustomParser for NflOperationsScheduleParser {
             let parsed = Html::parse_document(&html_text);
             let details_sel = Selector::parse("details.week-section")
                 .map_err(|_| anyhow!("failed to parse nfl week selector"))?;
-            let summary_sel =
-                Selector::parse("summary").map_err(|_| anyhow!("failed to parse summary selector"))?;
+            let summary_sel = Selector::parse("summary")
+                .map_err(|_| anyhow!("failed to parse summary selector"))?;
             let date_sel = Selector::parse("div.game-date")
                 .map_err(|_| anyhow!("failed to parse game-date selector"))?;
             let table_sel = Selector::parse("table.game-table")
                 .map_err(|_| anyhow!("failed to parse table selector"))?;
-            let tr_sel = Selector::parse("tr").map_err(|_| anyhow!("failed to parse tr selector"))?;
-            let td_sel = Selector::parse("td").map_err(|_| anyhow!("failed to parse td selector"))?;
+            let tr_sel =
+                Selector::parse("tr").map_err(|_| anyhow!("failed to parse tr selector"))?;
+            let td_sel =
+                Selector::parse("td").map_err(|_| anyhow!("failed to parse td selector"))?;
 
             for section in parsed.select(&details_sel) {
                 let summary_text = section
@@ -1919,7 +1952,12 @@ impl CustomParser for NflOperationsScheduleParser {
                     .next()
                     .map(|s| s.text().collect::<Vec<_>>().join(" "))
                     .unwrap_or_default();
-                let week_label = summary_text.split('(').next().unwrap_or("").trim().to_string();
+                let week_label = summary_text
+                    .split('(')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
                 let week_range = summary_text
                     .split('(')
                     .nth(1)
@@ -1928,7 +1966,12 @@ impl CustomParser for NflOperationsScheduleParser {
                 let date_nodes = section.select(&date_sel).collect::<Vec<_>>();
                 let table_nodes = section.select(&table_sel).collect::<Vec<_>>();
                 for (date_node, table_node) in date_nodes.into_iter().zip(table_nodes.into_iter()) {
-                    let date_label = date_node.text().collect::<Vec<_>>().join(" ").trim().to_string();
+                    let date_label = date_node
+                        .text()
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .trim()
+                        .to_string();
                     for row in table_node.select(&tr_sel) {
                         let cols = row
                             .select(&td_sel)
@@ -1989,7 +2032,10 @@ impl CustomParser for NflOperationsScheduleParser {
                         events.push(CandidateEvent {
                             source_key: source.config.source.key.clone(),
                             source_name: source.config.source.name.clone(),
-                            source_event_id: Some(format!("{}|{}|{}", week_label, date_label, matchup)),
+                            source_event_id: Some(format!(
+                                "{}|{}|{}",
+                                week_label, date_label, matchup
+                            )),
                             source_url: Some(doc.source_url.clone()),
                             title,
                             description: Some(description),
@@ -2031,7 +2077,9 @@ impl CustomParser for MlsStatsApiScheduleParser {
         };
 
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(source.config.fetch.timeout_secs.max(30)))
+            .timeout(std::time::Duration::from_secs(
+                source.config.fetch.timeout_secs.max(30),
+            ))
             .build()
             .context("failed to build mls api client")?;
 
@@ -2046,11 +2094,15 @@ impl CustomParser for MlsStatsApiScheduleParser {
 
             let payload: Value = request
                 .send()
-                .with_context(|| format!("failed to fetch mls schedule json from {}", doc.source_url))?
+                .with_context(|| {
+                    format!("failed to fetch mls schedule json from {}", doc.source_url)
+                })?
                 .error_for_status()
                 .with_context(|| format!("mls schedule api returned error for {}", doc.source_url))?
                 .json()
-                .with_context(|| format!("failed to decode mls schedule json from {}", doc.source_url))?;
+                .with_context(|| {
+                    format!("failed to decode mls schedule json from {}", doc.source_url)
+                })?;
 
             let Some(schedule) = payload.get("schedule").and_then(Value::as_array) else {
                 break;
@@ -2060,7 +2112,8 @@ impl CustomParser for MlsStatsApiScheduleParser {
                 let Some(game_id) = game.get("match_id").and_then(Value::as_str) else {
                     continue;
                 };
-                let Some(start_raw) = game.get("planned_kickoff_time").and_then(Value::as_str) else {
+                let Some(start_raw) = game.get("planned_kickoff_time").and_then(Value::as_str)
+                else {
                     continue;
                 };
                 let Ok(start) =
@@ -2187,14 +2240,16 @@ impl CustomParser for PgaTourScheduleNextDataParser {
 
         for doc in docs {
             let html_text = String::from_utf8_lossy(&doc.body).to_string();
-            let payload = extract_next_data_json(&html_text)
-                .with_context(|| format!("failed to extract __NEXT_DATA__ from {}", doc.source_url))?;
+            let payload = extract_next_data_json(&html_text).with_context(|| {
+                format!("failed to extract __NEXT_DATA__ from {}", doc.source_url)
+            })?;
             let Some(tournaments) = find_pgatour_tournaments(&payload) else {
                 continue;
             };
 
             for tournament in tournaments {
-                let Some(tournament_id) = tournament.get("tournamentId").and_then(Value::as_str) else {
+                let Some(tournament_id) = tournament.get("tournamentId").and_then(Value::as_str)
+                else {
                     continue;
                 };
                 let Some(name) = tournament.get("name").and_then(Value::as_str) else {
@@ -2251,14 +2306,23 @@ impl CustomParser for PgaTourScheduleNextDataParser {
                         description.push_str(&format!(" Purse: {purse}."));
                     }
                 }
-                if let Some(points_heading) = tournament.pointer("/standings/heading").and_then(Value::as_str) {
-                    if let Some(points_value) = tournament.pointer("/standings/value").and_then(Value::as_str) {
+                if let Some(points_heading) = tournament
+                    .pointer("/standings/heading")
+                    .and_then(Value::as_str)
+                {
+                    if let Some(points_value) = tournament
+                        .pointer("/standings/value")
+                        .and_then(Value::as_str)
+                    {
                         description.push_str(&format!(" {points_heading}: {points_value}."));
                     }
                 }
 
                 let mut metadata = BTreeMap::new();
-                metadata.insert("tour".to_string(), normalize_golf_tour_key(&source.config.source.key));
+                metadata.insert(
+                    "tour".to_string(),
+                    normalize_golf_tour_key(&source.config.source.key),
+                );
                 metadata.insert("custom_parser".to_string(), self.key().to_string());
                 metadata.insert("course".to_string(), course_name.to_string());
                 if !city.is_empty() {
@@ -2281,10 +2345,16 @@ impl CustomParser for PgaTourScheduleNextDataParser {
                 if let Some(display_date) = tournament.get("displayDate").and_then(Value::as_str) {
                     metadata.insert("display_date".to_string(), display_date.to_string());
                 }
-                if let Some(points_heading) = tournament.pointer("/standings/heading").and_then(Value::as_str) {
+                if let Some(points_heading) = tournament
+                    .pointer("/standings/heading")
+                    .and_then(Value::as_str)
+                {
                     metadata.insert("standings_heading".to_string(), points_heading.to_string());
                 }
-                if let Some(points_value) = tournament.pointer("/standings/value").and_then(Value::as_str) {
+                if let Some(points_value) = tournament
+                    .pointer("/standings/value")
+                    .and_then(Value::as_str)
+                {
                     metadata.insert("standings_value".to_string(), points_value.to_string());
                 }
                 if let Some(champion) = tournament
@@ -2403,7 +2473,11 @@ fn parse_accessible_date_range(year: i32, text: &str) -> Option<(NaiveDate, Naiv
     let end_day = captures.name("end_day")?.as_str().parse::<u32>().ok()?;
 
     let start = NaiveDate::from_ymd_opt(year, start_month, start_day)?;
-    let end_year = if end_month < start_month { year + 1 } else { year };
+    let end_year = if end_month < start_month {
+        year + 1
+    } else {
+        year
+    };
     let end = NaiveDate::from_ymd_opt(end_year, end_month, end_day)?;
     Some((start, end))
 }
@@ -2463,7 +2537,10 @@ fn parse_wikipedia_release_tables(
 
     for doc in docs {
         let payload: Value = serde_json::from_slice(&doc.body).with_context(|| {
-            format!("failed to parse wikipedia release-table json from {}", doc.source_url)
+            format!(
+                "failed to parse wikipedia release-table json from {}",
+                doc.source_url
+            )
         })?;
         let Some(html_fragment) = payload.pointer("/parse/text").and_then(Value::as_str) else {
             continue;
@@ -2503,8 +2580,14 @@ fn parse_wikipedia_release_tables(
                     .map(|cell| collapse_whitespace(&cell.text().collect::<String>()))
                     .collect::<Vec<_>>();
 
-                let Some(parsed_row) =
-                    parse_wikipedia_release_row(schema, &header_cells, &texts, year, &mut current_month, &mut current_day)?
+                let Some(parsed_row) = parse_wikipedia_release_row(
+                    schema,
+                    &header_cells,
+                    &texts,
+                    year,
+                    &mut current_month,
+                    &mut current_day,
+                )?
                 else {
                     continue;
                 };
@@ -2634,6 +2717,8 @@ fn collapse_whitespace(text: &str) -> String {
 #[derive(Clone, Copy)]
 enum WikipediaReleaseSchema {
     AmericanFilms,
+    AmericanTelevision,
+    Literature,
     VideoGames,
 }
 
@@ -2641,6 +2726,8 @@ impl WikipediaReleaseSchema {
     fn name(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "american_films",
+            WikipediaReleaseSchema::AmericanTelevision => "american_television",
+            WikipediaReleaseSchema::Literature => "literature",
             WikipediaReleaseSchema::VideoGames => "video_games",
         }
     }
@@ -2648,6 +2735,8 @@ impl WikipediaReleaseSchema {
     fn default_subtype(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "film_release",
+            WikipediaReleaseSchema::AmericanTelevision => "television_release",
+            WikipediaReleaseSchema::Literature => "book_release",
             WikipediaReleaseSchema::VideoGames => "video_game_release",
         }
     }
@@ -2671,6 +2760,20 @@ fn detect_wikipedia_release_schema(headers: &[String]) -> Option<WikipediaReleas
         && normalized.iter().any(|v| v.contains("production company"))
     {
         return Some(WikipediaReleaseSchema::AmericanFilms);
+    }
+    if normalized.iter().any(|v| v == "first aired")
+        && normalized.iter().any(|v| v == "title")
+        && normalized.iter().any(|v| v == "channel")
+    {
+        return Some(WikipediaReleaseSchema::AmericanTelevision);
+    }
+    if normalized.iter().any(|v| v == "author")
+        && normalized.iter().any(|v| v == "title")
+        && normalized
+            .iter()
+            .any(|v| v == "date of pub." || v == "date")
+    {
+        return Some(WikipediaReleaseSchema::Literature);
     }
     if normalized.iter().any(|v| v == "release date")
         && normalized.iter().any(|v| v == "title")
@@ -2736,6 +2839,60 @@ fn parse_wikipedia_release_row(
                 time,
             }))
         }
+        WikipediaReleaseSchema::AmericanTelevision => {
+            if texts.len() < 3 {
+                return Ok(None);
+            }
+
+            let timing =
+                parse_wikipedia_flexible_release_label(year, &texts[0], current_month, current_day);
+            let title = texts[1].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let channel = texts[2].clone();
+            let mut metadata_fields = BTreeMap::new();
+            metadata_fields.insert("channel".to_string(), channel.clone());
+            if let Some(note) = timing.note {
+                metadata_fields.insert("timing_note".to_string(), note);
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: 1,
+                description: Some(format!("Channel: {channel}")),
+                metadata_fields,
+                time: timing.time,
+            }))
+        }
+        WikipediaReleaseSchema::Literature => {
+            if texts.len() < 3 {
+                return Ok(None);
+            }
+
+            let author = texts[0].clone();
+            let title = texts[1].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let timing =
+                parse_wikipedia_flexible_release_label(year, &texts[2], current_month, current_day);
+            let mut metadata_fields = BTreeMap::new();
+            metadata_fields.insert("author".to_string(), author.clone());
+            if let Some(note) = timing.note {
+                metadata_fields.insert("publication_note".to_string(), note);
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: 1,
+                description: Some(format!("Author: {author}")),
+                metadata_fields,
+                time: timing.time,
+            }))
+        }
         WikipediaReleaseSchema::VideoGames => {
             if texts.len() < 6 {
                 return Ok(None);
@@ -2767,8 +2924,7 @@ fn parse_wikipedia_release_row(
             Ok(Some(ParsedWikipediaReleaseRow {
                 title,
                 title_cell_index: 1,
-                description: (!description_parts.is_empty())
-                    .then(|| description_parts.join("\n")),
+                description: (!description_parts.is_empty()).then(|| description_parts.join("\n")),
                 metadata_fields,
                 time,
             }))
@@ -2776,11 +2932,12 @@ fn parse_wikipedia_release_row(
     }
 }
 
-fn wikipedia_release_time(
-    year: i32,
-    month: Option<u32>,
-    day: Option<u32>,
-) -> EventTimeSpec {
+struct ParsedWikipediaTiming {
+    time: EventTimeSpec,
+    note: Option<String>,
+}
+
+fn wikipedia_release_time(year: i32, month: Option<u32>, day: Option<u32>) -> EventTimeSpec {
     match (month, day) {
         (Some(month), Some(day)) => EventTimeSpec::Date {
             start: NaiveDate::from_ymd_opt(year, month, day)
@@ -2792,6 +2949,56 @@ fn wikipedia_release_time(
     }
 }
 
+fn parse_wikipedia_flexible_release_label(
+    year: i32,
+    text: &str,
+    current_month: &mut Option<u32>,
+    current_day: &mut Option<u32>,
+) -> ParsedWikipediaTiming {
+    let trimmed = collapse_whitespace(text);
+    if trimmed.is_empty() {
+        return ParsedWikipediaTiming {
+            time: wikipedia_release_time(year, *current_month, *current_day),
+            note: None,
+        };
+    }
+
+    if let Some((month, day, note)) = parse_wikipedia_month_day_with_note(&trimmed) {
+        *current_month = Some(month);
+        *current_day = Some(day);
+        return ParsedWikipediaTiming {
+            time: EventTimeSpec::Date {
+                start: NaiveDate::from_ymd_opt(year, month, day).unwrap_or_else(|| {
+                    NaiveDate::from_ymd_opt(year, month, 1).expect("valid month")
+                }),
+                end: None,
+            },
+            note,
+        };
+    }
+
+    if let Some(month) = parse_wikipedia_month_label(&trimmed) {
+        *current_month = Some(month);
+        *current_day = None;
+        return ParsedWikipediaTiming {
+            time: EventTimeSpec::Month { year, month },
+            note: None,
+        };
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    let (time, note) = match lower.as_str() {
+        "winter" => (EventTimeSpec::Quarter { year, quarter: 1 }, None),
+        "spring" => (EventTimeSpec::Quarter { year, quarter: 2 }, None),
+        "summer" => (EventTimeSpec::Quarter { year, quarter: 3 }, None),
+        "fall" | "autumn" => (EventTimeSpec::Quarter { year, quarter: 4 }, None),
+        "early" | "late" | "tba" | "unknown" => (EventTimeSpec::Year { year }, Some(trimmed)),
+        _ => (EventTimeSpec::Year { year }, Some(trimmed)),
+    };
+    *current_day = None;
+    ParsedWikipediaTiming { time, note }
+}
+
 fn parse_wikipedia_month_day(text: &str) -> Option<(u32, u32)> {
     let pieces = text.split_whitespace().collect::<Vec<_>>();
     if pieces.len() != 2 {
@@ -2800,6 +3007,19 @@ fn parse_wikipedia_month_day(text: &str) -> Option<(u32, u32)> {
     let month = month_name_to_number(pieces[0])?;
     let day = pieces[1].trim_end_matches(',').parse::<u32>().ok()?;
     Some((month, day))
+}
+
+fn parse_wikipedia_month_day_with_note(text: &str) -> Option<(u32, u32, Option<String>)> {
+    let trimmed = text.trim();
+    let (date_part, note) = if let Some((date_part, rest)) = trimmed.split_once('(') {
+        (
+            date_part.trim(),
+            Some(rest.trim().trim_end_matches(')').trim().to_string()).filter(|v| !v.is_empty()),
+        )
+    } else {
+        (trimmed, None)
+    };
+    parse_wikipedia_month_day(date_part).map(|(month, day)| (month, day, note))
 }
 
 fn sanitize_wikipedia_header_key(header: &str) -> String {
@@ -2833,15 +3053,19 @@ fn parse_nfl_datetime(
     kickoff: &str,
     timezone: Option<&str>,
 ) -> Result<Option<DateTime<Utc>>> {
-    let normalized_date = date_label
-        .replace("Sept.", "Sep.")
-        .replace("Sept ", "Sep ");
+    let normalized_date = date_label.replace("Sept.", "Sep.").replace("Sept ", "Sep ");
     let clean_time = kickoff.trim().trim_end_matches('*');
     let Some((hour_text, rest)) = clean_time.split_once(':') else {
         return Ok(None);
     };
-    let minute_digits = rest.chars().take_while(|c| c.is_ascii_digit()).collect::<String>();
-    let suffix = rest.chars().skip_while(|c| c.is_ascii_digit()).collect::<String>();
+    let minute_digits = rest
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<String>();
+    let suffix = rest
+        .chars()
+        .skip_while(|c| c.is_ascii_digit())
+        .collect::<String>();
     let mut hour: u32 = match hour_text.parse() {
         Ok(value) => value,
         Err(_) => return Ok(None),
@@ -2987,8 +3211,15 @@ fn parse_structured_elections_feed(
 
             let mut metadata = BTreeMap::new();
             for (key, value) in &fields {
-                if ["end", "status", "subtype", "importance", "confidence", "description"]
-                    .contains(&key.as_str())
+                if [
+                    "end",
+                    "status",
+                    "subtype",
+                    "importance",
+                    "confidence",
+                    "description",
+                ]
+                .contains(&key.as_str())
                 {
                     continue;
                 }

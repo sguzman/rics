@@ -1,0 +1,14 @@
+[bundle]
+key = "culture.releases"
+name = "Culture Releases"
+
+[include]
+source_patterns = [
+  "films.us.wikipedia.*",
+  "games.wikipedia.*",
+  "television.us.wikipedia.*",
+  "books.wikipedia.*",
+]
+
+[publish]
+file_name_template = "culture-releases-{{year}}.ics"

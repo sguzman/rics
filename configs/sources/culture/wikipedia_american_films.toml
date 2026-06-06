@@ -12,9 +12,9 @@ mode = "http"
 base_url = "https://en.wikipedia.org/w/api.php?action=parse&page=List_of_American_films_of_{{current_year}}&prop=text&formatversion=2&format=json"
 method = "GET"
 headers = { accept = "application/json,text/html;q=0.9,*/*;q=0.8" }
-timeout_secs = 20
-retry_attempts = 2
-retry_backoff_ms = 250
+timeout_secs = 45
+retry_attempts = 3
+retry_backoff_ms = 500
 user_agent = "rics-calendar-bot/1.0 (https://en.wikipedia.org/wiki/List_of_American_films_of_{{current_year}})"
 
 [extract]

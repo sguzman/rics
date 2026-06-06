@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::load_sources_from_dir;
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -13,7 +13,11 @@ fn us_state_source_pack_validates_and_has_unique_state_keys() -> Result<()> {
     let sources = load_sources_from_dir(&root.join("configs/sources/elections/us_states"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
-    assert!(bundles.iter().any(|bundle| bundle.config.bundle.key == "us_states.elections"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "us_states.elections")
+    );
     assert_eq!(sources.len(), 50);
 
     let mut keys = HashSet::new();
@@ -42,19 +46,23 @@ fn us_state_shared_feed_filters_events_by_state_and_builds_bundle() -> Result<()
 
     let state = load_state_for_read(&env.state_path)?;
     assert_eq!(state.events.len(), 3);
-    assert!(state
-        .events
-        .values()
-        .all(|event| matches!(event.time, EventTimeSpec::Date { .. } | EventTimeSpec::Year { .. })));
-    assert!(state
-        .events
-        .values()
-        .all(|event| event.metadata.get("state").is_some()));
-    assert!(state
-        .events
-        .values()
-        .filter(|event| event.country.as_deref() == Some("TX"))
-        .all(|event| event.metadata.get("state").map(String::as_str) == Some("TX")));
+    assert!(state.events.values().all(|event| matches!(
+        event.time,
+        EventTimeSpec::Date { .. } | EventTimeSpec::Year { .. }
+    )));
+    assert!(
+        state
+            .events
+            .values()
+            .all(|event| event.metadata.get("state").is_some())
+    );
+    assert!(
+        state
+            .events
+            .values()
+            .filter(|event| event.country.as_deref() == Some("TX"))
+            .all(|event| event.metadata.get("state").map(String::as_str) == Some("TX"))
+    );
 
     let texas_2026 = env
         .out_dir

@@ -26,24 +26,27 @@ fn sync_and_build_write_snapshot_with_split_country_and_bundle_views() -> Result
     assert!(pretty.starts_with("{\n  \"schema_version\""));
 
     let snapshot: Value = serde_json::from_str(&pretty)?;
-    assert!(snapshot["calendars"]
-        .get("source:test.econ:country:us")
-        .is_some());
-    assert!(snapshot["calendars"]
-        .get("source:test.econ:country:ca")
-        .is_some());
+    assert!(
+        snapshot["calendars"]
+            .get("source:test.econ:country:us")
+            .is_some()
+    );
+    assert!(
+        snapshot["calendars"]
+            .get("source:test.econ:country:ca")
+            .is_some()
+    );
     assert!(snapshot["calendars"].get("source:test.sports").is_some());
     assert!(snapshot["calendars"].get("bundle:test.all").is_some());
     assert!(snapshot["indexes"]["years"].get("2026").is_some());
     assert!(snapshot["indexes"]["tags"].get("sports").is_some());
-    assert!(snapshot["indexes"]["ontology_paths"]
-        .get("domain/economic-indicators")
-        .is_some());
+    assert!(
+        snapshot["indexes"]["ontology_paths"]
+            .get("domain/economic-indicators")
+            .is_some()
+    );
     assert_eq!(
-        snapshot["events"]
-            .as_object()
-            .expect("events object")
-            .len(),
+        snapshot["events"].as_object().expect("events object").len(),
         3
     );
 

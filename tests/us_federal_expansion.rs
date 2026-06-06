@@ -6,7 +6,8 @@ use std::path::Path;
 #[test]
 fn us_federal_additional_source_families_validate_and_have_expected_counts() -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let committee_sources = load_sources_from_dir(&root.join("configs/sources/federal/us_committees"))?;
+    let committee_sources =
+        load_sources_from_dir(&root.join("configs/sources/federal/us_committees"))?;
     let court_sources = load_sources_from_dir(&root.join("configs/sources/federal/us_courts"))?;
     let agency_sources = load_sources_from_dir(&root.join("configs/sources/federal/us_agencies"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;

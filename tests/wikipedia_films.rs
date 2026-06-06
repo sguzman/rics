@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::load_sources_from_dir;
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,13 +11,14 @@ fn wikipedia_film_source_validates_and_has_expected_key() -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let sources = load_sources_from_dir(&root.join("configs/sources/culture"))?;
 
-    assert_eq!(sources.len(), 2);
     let keys = sources
         .into_iter()
         .map(|source| source.config.source.key)
         .collect::<HashSet<_>>();
     assert!(keys.contains("films.us.wikipedia.american"));
     assert!(keys.contains("games.wikipedia.releases"));
+    assert!(keys.contains("television.us.wikipedia.debuts"));
+    assert!(keys.contains("books.wikipedia.literature"));
     Ok(())
 }
 

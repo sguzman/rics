@@ -294,7 +294,9 @@ pub fn load_state_for_read(path: &Path) -> Result<State> {
 }
 
 fn bundle_config_dir(source_config_dir: &Path) -> Option<PathBuf> {
-    source_config_dir.parent().map(|parent| parent.join("bundles"))
+    source_config_dir
+        .parent()
+        .map(|parent| parent.join("bundles"))
 }
 
 fn load_optional_bundles(source_config_dir: &Path) -> Result<Vec<LoadedBundle>> {
@@ -641,7 +643,10 @@ fn rebuild_bundles(
         let mut by_year: HashMap<i32, Vec<&EventRecord>> = HashMap::new();
         for event in state.events.values().filter(|event| {
             !event.status.eq_ignore_ascii_case("cancelled")
-                && matches_bundle_patterns(&event.source_key, &bundle.config.include.source_patterns)
+                && matches_bundle_patterns(
+                    &event.source_key,
+                    &bundle.config.include.source_patterns,
+                )
         }) {
             if let Some(year) = event.year_bucket() {
                 by_year.entry(year).or_default().push(event);

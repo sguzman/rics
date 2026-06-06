@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::{load_bundles_from_dir, load_sources_from_dir};
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,9 +13,11 @@ fn us_mens_golf_sources_validate_and_have_expected_keys() -> Result<()> {
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
     assert_eq!(sources.len(), 4);
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "us_mens_golf.all"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "us_mens_golf.all")
+    );
 
     let keys = sources
         .into_iter()

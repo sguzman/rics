@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::{load_bundles_from_dir, load_sources_from_dir};
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -25,9 +25,11 @@ fn competitive_card_game_sources_and_bundle_validate() -> Result<()> {
     assert!(keys.contains("card_games.flesh_and_blood"));
 
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "card_games.competitive"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "card_games.competitive")
+    );
     Ok(())
 }
 
@@ -60,11 +62,9 @@ fn competitive_card_game_bundle_builds_from_real_sources() -> Result<()> {
     assert!(bundle_2026.exists());
 
     let content = fs::read_to_string(bundle_2026)?;
-    assert!(content.contains(
-        "SUMMARY:Magic: The Gathering Premier Play: Pro Tour Lorwyn Eclipsed"
-    ));
-    assert!(content.contains(
-        "SUMMARY:Yu-Gi-Oh! TCG Organized Play: YCS Columbus"
-    ));
+    assert!(
+        content.contains("SUMMARY:Magic: The Gathering Premier Play: Pro Tour Lorwyn Eclipsed")
+    );
+    assert!(content.contains("SUMMARY:Yu-Gi-Oh! TCG Organized Play: YCS Columbus"));
     Ok(())
 }

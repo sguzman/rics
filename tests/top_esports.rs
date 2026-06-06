@@ -12,11 +12,16 @@ fn top_esports_sources_validate_and_have_expected_keys() -> Result<()> {
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
     assert_eq!(sources.len(), 18);
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "esports.top_titles"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "esports.top_titles")
+    );
 
-    let keys = sources.iter().map(|source| source.config.source.key.as_str()).collect::<Vec<_>>();
+    let keys = sources
+        .iter()
+        .map(|source| source.config.source.key.as_str())
+        .collect::<Vec<_>>();
     assert!(keys.contains(&"esports.riot.lol"));
     assert!(keys.contains(&"esports.riot.valorant"));
     assert!(keys.contains(&"esports.riot.teamfight_tactics"));

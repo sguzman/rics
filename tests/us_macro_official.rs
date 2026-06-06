@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::{load_bundles_from_dir, load_sources_from_dir};
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -22,9 +22,11 @@ fn us_macro_official_source_pack_validates_and_has_expected_keys() -> Result<()>
     assert!(keys.contains("finance.us_macro_official.bea"));
     assert!(keys.contains("finance.us_macro_official.census"));
     assert!(keys.contains("finance.us_macro_official.fed"));
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "finance.us_macro_official"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "finance.us_macro_official")
+    );
 
     for source in sources {
         assert_eq!(source.config.source.default_country.as_deref(), Some("US"));
@@ -64,7 +66,9 @@ fn us_macro_official_bundle_builds_from_real_sources() -> Result<()> {
     let content = fs::read_to_string(bundle_2026)?;
     assert!(content.contains("Consumer Price Index for May 2026"));
     assert!(content.contains("GDP Advance Estimate for Q2 2026"));
-    assert!(content.contains("SUMMARY:US Macro Official: Census: Advance Monthly Retail Trade Report"));
+    assert!(
+        content.contains("SUMMARY:US Macro Official: Census: Advance Monthly Retail Trade Report")
+    );
     assert!(content.contains("FOMC meeting begins"));
 
     Ok(())

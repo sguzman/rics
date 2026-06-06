@@ -13,9 +13,11 @@ fn us_major_city_sources_validate_and_have_expected_keys() -> Result<()> {
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
     assert_eq!(sources.len(), 10);
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "us_major_cities.civic"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "us_major_cities.civic")
+    );
 
     let keys = sources
         .into_iter()

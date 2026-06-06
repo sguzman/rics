@@ -13,7 +13,11 @@ fn us_federal_source_pack_validates_and_has_expected_keys() -> Result<()> {
     let sources = load_sources_from_dir(&root.join("configs/sources/federal/us_core"))?;
     let bundles = load_bundles_from_dir(&root.join("configs/bundles"))?;
 
-    assert!(bundles.iter().any(|bundle| bundle.config.bundle.key == "us_federal.core"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "us_federal.core")
+    );
     assert_eq!(sources.len(), 5);
 
     let mut keys = HashSet::new();
@@ -41,7 +45,12 @@ fn us_federal_bundle_builds_from_multiple_sources() -> Result<()> {
 
     let state = load_state_for_read(&env.state_path)?;
     assert!(state.events.len() >= 2);
-    assert!(state.events.values().any(|event| matches!(event.time, EventTimeSpec::Date { .. })));
+    assert!(
+        state
+            .events
+            .values()
+            .any(|event| matches!(event.time, EventTimeSpec::Date { .. }))
+    );
 
     let bundle_2026 = env
         .out_dir

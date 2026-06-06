@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::{load_bundles_from_dir, load_sources_from_dir};
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -18,9 +18,11 @@ fn us_treasury_markets_source_pack_validates_and_has_expected_keys() -> Result<(
         .collect::<HashSet<_>>();
 
     assert!(keys.contains("finance.us_treasury_markets.refunding"));
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "finance.us_treasury_markets"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "finance.us_treasury_markets")
+    );
 
     Ok(())
 }
@@ -47,8 +49,16 @@ fn us_treasury_markets_bundle_builds_from_real_source() -> Result<()> {
     assert!(bundle_2026.exists());
 
     let content = fs::read_to_string(bundle_2026)?;
-    assert!(content.contains("SUMMARY:US Treasury Markets: Quarterly Refunding: Treasury quarterly refund"));
-    assert!(content.contains("SUMMARY:US Treasury Markets: Quarterly Refunding: Treasury buyback schedule"));
+    assert!(
+        content.contains(
+            "SUMMARY:US Treasury Markets: Quarterly Refunding: Treasury quarterly refund"
+        )
+    );
+    assert!(
+        content.contains(
+            "SUMMARY:US Treasury Markets: Quarterly Refunding: Treasury buyback schedule"
+        )
+    );
     assert!(content.contains("financing estimates scheduled for Q3 2026"));
 
     Ok(())

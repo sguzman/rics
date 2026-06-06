@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rics::config::{load_bundles_from_dir, load_sources_from_dir};
-use rics::pipeline::{sync_sources, SyncOptions};
+use rics::pipeline::{SyncOptions, sync_sources};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -20,12 +20,16 @@ fn us_sec_edgar_and_market_data_packs_validate() -> Result<()> {
     assert!(keys.contains("finance.us_sec_edgar.filing_deadlines"));
     assert!(keys.contains("finance.us_market_data.fed_stats"));
     assert!(keys.contains("finance.us_market_data.eia"));
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "finance.us_sec_edgar"));
-    assert!(bundles
-        .iter()
-        .any(|bundle| bundle.config.bundle.key == "finance.us_market_data"));
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "finance.us_sec_edgar")
+    );
+    assert!(
+        bundles
+            .iter()
+            .any(|bundle| bundle.config.bundle.key == "finance.us_market_data")
+    );
 
     Ok(())
 }
@@ -64,8 +68,12 @@ fn us_sec_edgar_and_market_data_bundles_build_from_real_sources() -> Result<()> 
     assert!(market_bundle.exists());
 
     let sec_content = fs::read_to_string(sec_bundle)?;
-    assert!(sec_content.contains("SUMMARY:US SEC/EDGAR Filing Deadlines: Form 13F filing deadline"));
-    assert!(sec_content.contains("SUMMARY:US SEC/EDGAR Filing Deadlines: Form 10-K filing deadline"));
+    assert!(
+        sec_content.contains("SUMMARY:US SEC/EDGAR Filing Deadlines: Form 13F filing deadline")
+    );
+    assert!(
+        sec_content.contains("SUMMARY:US SEC/EDGAR Filing Deadlines: Form 10-K filing deadline")
+    );
 
     let market_content = fs::read_to_string(market_bundle)?;
     assert!(market_content.contains("H.6 Money Stock Measures release"));
