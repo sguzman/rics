@@ -17,6 +17,8 @@ fn deepened_central_bank_sources_build_exact_2026_calendars() -> Result<()> {
         "macro.central_banks.boc",
         "macro.central_banks.rba",
         "macro.central_banks.rbnz",
+        "macro.central_banks.boj",
+        "macro.central_banks.snb",
     ] {
         sync_sources(&SyncOptions {
             config_dir: root.join("configs/sources"),
@@ -39,11 +41,16 @@ fn deepened_central_bank_sources_build_exact_2026_calendars() -> Result<()> {
     assert!(content.contains("Central Bank: Bank of Canada: Bank of Canada interest rate"));
     assert!(content.contains("Central Bank: Reserve Bank of Australia: RBA Monetary Policy"));
     assert!(content.contains("Central Bank: Reserve Bank of New Zealand: RBNZ Monetary Policy"));
+    assert!(content.contains("Central Bank: Bank of Japan: Bank of Japan Monetary Policy Meeting"));
+    assert!(content.contains("Central Bank: Swiss National Bank: Swiss National Bank monetary pol"));
     assert!(content.contains("DTSTART;VALUE=DATE:20260204"));
     assert!(content.contains("DTSTART;VALUE=DATE:20260205"));
     assert!(content.contains("DTSTART;VALUE=DATE:20260128"));
     assert!(content.contains("DTSTART;VALUE=DATE:20260202"));
     assert!(content.contains("DTSTART;VALUE=DATE:20260408"));
+    assert!(content.contains("DTSTART;VALUE=DATE:20260122"));
+    assert!(content.contains("DTSTART;VALUE=DATE:20260319"));
+    assert!(!content.contains("official policy calendar 2026"));
 
     Ok(())
 }

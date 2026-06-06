@@ -369,7 +369,11 @@ fn merge_source_events(
         if seen_uids.contains(&event.uid) {
             continue;
         }
-        if !event.is_future_relative_to(today) {
+        if event
+            .time
+            .end_date_exclusive()
+            .is_some_and(|end| end <= today)
+        {
             continue;
         }
         if event.status.eq_ignore_ascii_case("cancelled") {
