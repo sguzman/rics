@@ -2717,7 +2717,9 @@ fn collapse_whitespace(text: &str) -> String {
 #[derive(Clone, Copy)]
 enum WikipediaReleaseSchema {
     AmericanFilms,
+    AmericanMusicAlbums,
     AnimeTelevision,
+    AnimeFilms,
     AmericanTelevision,
     BritishTelevision,
     Literature,
@@ -2728,7 +2730,9 @@ impl WikipediaReleaseSchema {
     fn name(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "american_films",
+            WikipediaReleaseSchema::AmericanMusicAlbums => "american_music_albums",
             WikipediaReleaseSchema::AnimeTelevision => "anime_television",
+            WikipediaReleaseSchema::AnimeFilms => "anime_films",
             WikipediaReleaseSchema::AmericanTelevision => "american_television",
             WikipediaReleaseSchema::BritishTelevision => "british_television",
             WikipediaReleaseSchema::Literature => "literature",
@@ -2739,7 +2743,9 @@ impl WikipediaReleaseSchema {
     fn default_subtype(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "film_release",
+            WikipediaReleaseSchema::AmericanMusicAlbums => "album_release",
             WikipediaReleaseSchema::AnimeTelevision => "anime_release",
+            WikipediaReleaseSchema::AnimeFilms => "anime_release",
             WikipediaReleaseSchema::AmericanTelevision => "television_release",
             WikipediaReleaseSchema::BritishTelevision => "television_release",
             WikipediaReleaseSchema::Literature => "book_release",
@@ -2767,6 +2773,12 @@ fn detect_wikipedia_release_schema(headers: &[String]) -> Option<WikipediaReleas
     {
         return Some(WikipediaReleaseSchema::AmericanFilms);
     }
+    if normalized.iter().any(|v| v == "date")
+        && normalized.iter().any(|v| v == "album")
+        && normalized.iter().any(|v| v == "artist")
+    {
+        return Some(WikipediaReleaseSchema::AmericanMusicAlbums);
+    }
     if normalized.iter().any(|v| v == "first aired")
         && normalized.iter().any(|v| v == "title")
         && normalized.iter().any(|v| v == "channel")
@@ -2786,6 +2798,13 @@ fn detect_wikipedia_release_schema(headers: &[String]) -> Option<WikipediaReleas
         && normalized.iter().any(|v| v == "studio")
     {
         return Some(WikipediaReleaseSchema::AnimeTelevision);
+    }
+    if normalized.iter().any(|v| v == "release date")
+        && normalized.iter().any(|v| v == "title")
+        && normalized.iter().any(|v| v == "studio")
+        && normalized.iter().any(|v| v.contains("running time"))
+    {
+        return Some(WikipediaReleaseSchema::AnimeFilms);
     }
     if normalized.iter().any(|v| v == "author")
         && normalized.iter().any(|v| v == "title")
@@ -2859,6 +2878,57 @@ fn parse_wikipedia_release_row(
                 time,
             }))
         }
+        WikipediaReleaseSchema::AmericanMusicAlbums => {
+            let mut index = 0;
+            if let Some(month) = parse_wikipedia_month_label(&texts[index]) {
+                *current_month = Some(month);
+                *current_day = None;
+                index += 1;
+            }
+
+            if index < texts.len() {
+                if let Some(day) = parse_wikipedia_day_cell(&texts[index]) {
+                    *current_day = Some(day);
+                    index += 1;
+                }
+            }
+
+            if index + 2 >= texts.len() {
+                return Ok(None);
+            }
+
+            let title = texts[index].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let artist = texts[index + 1].clone();
+            let time = wikipedia_release_time(year, *current_month, *current_day);
+            let mut metadata_fields = BTreeMap::new();
+            metadata_fields.insert("artist".to_string(), artist.clone());
+
+            let mut description_parts = vec![format!("Artist: {artist}")];
+            for (offset, header) in headers.iter().skip(index + 2).enumerate() {
+                let value_index = index + 2 + offset;
+                let Some(value) = texts.get(value_index) else {
+                    break;
+                };
+                if value.is_empty() || header.eq_ignore_ascii_case("Ref.") {
+                    continue;
+                }
+                let key = sanitize_wikipedia_header_key(header);
+                metadata_fields.insert(key, value.clone());
+                description_parts.push(format!("{header}: {value}"));
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: index,
+                description: Some(description_parts.join("\n")),
+                metadata_fields,
+                time,
+            }))
+        }
         WikipediaReleaseSchema::AmericanTelevision => {
             if texts.len() < 3 {
                 return Ok(None);
@@ -2882,6 +2952,43 @@ fn parse_wikipedia_release_row(
                 title,
                 title_cell_index: 1,
                 description: Some(format!("Channel: {channel}")),
+                metadata_fields,
+                time: timing.time,
+            }))
+        }
+        WikipediaReleaseSchema::AnimeFilms => {
+            if texts.len() < 5 {
+                return Ok(None);
+            }
+
+            let timing =
+                parse_wikipedia_flexible_release_label(year, &texts[0], current_month, current_day);
+            let title = texts[1].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let mut description_parts = Vec::new();
+            let mut metadata_fields = BTreeMap::new();
+            for (header, value) in headers.iter().skip(2).zip(texts.iter().skip(2)) {
+                if value.is_empty()
+                    || header.eq_ignore_ascii_case("Ref")
+                    || header.eq_ignore_ascii_case("Ref.")
+                {
+                    continue;
+                }
+                let key = sanitize_wikipedia_header_key(header);
+                metadata_fields.insert(key, value.clone());
+                description_parts.push(format!("{header}: {value}"));
+            }
+            if let Some(note) = timing.note {
+                metadata_fields.insert("timing_note".to_string(), note);
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: 1,
+                description: (!description_parts.is_empty()).then(|| description_parts.join("\n")),
                 metadata_fields,
                 time: timing.time,
             }))

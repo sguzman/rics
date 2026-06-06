@@ -7,6 +7,7 @@ source_patterns = [
   "films.us.wikipedia.*",
   "games.wikipedia.*",
   "anime.wikipedia.*",
+  "music.us.wikipedia.*",
   "television.us.wikipedia.*",
   "television.gb.wikipedia.*",
   "books.wikipedia.*",

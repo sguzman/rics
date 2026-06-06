@@ -17,6 +17,8 @@ fn wikipedia_culture_sources_and_bundle_validate() -> Result<()> {
         .map(|source| source.config.source.key)
         .collect::<HashSet<_>>();
     assert!(keys.contains("anime.wikipedia.television"));
+    assert!(keys.contains("anime.wikipedia.films"));
+    assert!(keys.contains("music.us.wikipedia.albums"));
     assert!(keys.contains("television.us.wikipedia.debuts"));
     assert!(keys.contains("television.gb.wikipedia.debuts"));
     assert!(keys.contains("books.wikipedia.literature"));
@@ -125,6 +127,49 @@ fn wikipedia_anime_and_british_television_build_calendars() -> Result<()> {
     assert!(british_tv.contains("DTSTART;VALUE=DATE:20260101"));
     assert!(british_tv.contains("X-RICS-CHANNEL:BBC One"));
     assert!(british_tv.contains("X-RICS-WIKIPEDIA-SCHEMA:british_television"));
+
+    Ok(())
+}
+
+#[test]
+fn wikipedia_music_and_anime_films_build_calendars() -> Result<()> {
+    let env = setup_release_temp_env()?;
+
+    let reports = sync_sources(&SyncOptions {
+        config_dir: env.config_dir.clone(),
+        state_path: env.state_path.clone(),
+        out_dir: env.out_dir.clone(),
+        source: None,
+        dry_run: false,
+    })?;
+
+    assert_eq!(reports.len(), 2);
+
+    let music_file = env
+        .out_dir
+        .join("sources")
+        .join("music-us-wikipedia-albums")
+        .join("american-albums-us-2026.ics");
+    let anime_films_file = env
+        .out_dir
+        .join("sources")
+        .join("anime-wikipedia-films")
+        .join("anime-films-2026.ics");
+
+    assert!(music_file.exists());
+    assert!(anime_films_file.exists());
+
+    let music = fs::read_to_string(music_file)?;
+    assert!(music.contains("SUMMARY:Example Album One"));
+    assert!(music.contains("DTSTART;VALUE=DATE:20260109"));
+    assert!(music.contains("X-RICS-ARTIST:Artist One"));
+    assert!(music.contains("X-RICS-WIKIPEDIA-SCHEMA:american_music_albums"));
+
+    let anime_films = fs::read_to_string(anime_films_file)?;
+    assert!(anime_films.contains("SUMMARY:Example Anime Film One"));
+    assert!(anime_films.contains("DTSTART;VALUE=DATE:20260101"));
+    assert!(anime_films.contains("X-RICS-STUDIO:Studio One"));
+    assert!(anime_films.contains("X-RICS-WIKIPEDIA-SCHEMA:anime_films"));
 
     Ok(())
 }
@@ -383,6 +428,126 @@ file_name_template = "british-television-{{year}}.ics"
   "parse": {
     "title": "2026 in British television",
     "text": "<table class=\"wikitable\"><tr><th>Date</th><th>Debut</th><th>Channel</th></tr><tr><td>1 January</td><td><a href=\"/wiki/Example_UK_Show_One\">Example UK Show One</a></td><td>BBC One</td></tr><tr><td>3 January</td><td><a href=\"/wiki/Example_UK_Show_Two\">Example UK Show Two</a></td><td>ITV</td></tr></table>"
+  }
+}"#,
+    )?;
+
+    Ok(TempEnv {
+        config_dir: root.join("sources"),
+        state_path: root.join("state.json"),
+        out_dir: root.join("out"),
+    })
+}
+
+fn setup_release_temp_env() -> Result<TempEnv> {
+    let temp = tempdir()?;
+    let root = temp.keep();
+    let source_dir = root.join("sources").join("culture");
+    let data_dir = root.join("data");
+    fs::create_dir_all(&source_dir)?;
+    fs::create_dir_all(&data_dir)?;
+
+    fs::write(
+        source_dir.join("wikipedia_american_music_albums.toml"),
+        r#"[source]
+key = "music.us.wikipedia.albums"
+name = "American Album Releases"
+domain = "music"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../data/music.json"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "album_release"
+status = "scheduled"
+categories = ["culture", "music", "wikipedia", "albums"]
+importance = 55
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "american-albums-us-{{year}}.ics"
+"#,
+    )?;
+
+    fs::write(
+        source_dir.join("wikipedia_anime_films.toml"),
+        r#"[source]
+key = "anime.wikipedia.films"
+name = "Anime Film Releases"
+domain = "anime"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "file"
+file_path = "../../data/anime_films.json"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "anime_release"
+status = "scheduled"
+categories = ["culture", "anime", "wikipedia", "films"]
+importance = 55
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "anime-films-{{year}}.ics"
+"#,
+    )?;
+
+    fs::write(
+        data_dir.join("music.json"),
+        r#"{
+  "parse": {
+    "title": "2026 in American music",
+    "text": "<table class=\"wikitable\"><tr><th>Date</th><th>Album</th><th>Artist</th><th>Genre (s)</th></tr><tr><td>J A N U A R Y</td><td>9</td><td><a href=\"/wiki/Example_Album_One\">Example Album One</a></td><td>Artist One</td><td>Rock</td></tr><tr><td>16</td><td><a href=\"/wiki/Example_Album_Two\">Example Album Two</a></td><td>Artist Two</td><td>Pop</td></tr></table>"
+  }
+}"#,
+    )?;
+
+    fs::write(
+        data_dir.join("anime_films.json"),
+        r#"{
+  "parse": {
+    "title": "2026 in anime",
+    "text": "<table class=\"wikitable\"><tr><th>Release date</th><th>Title</th><th>Studio</th><th>Director(s)</th><th>Running time (minutes)</th><th>Ref</th></tr><tr><td>January 1</td><td><a href=\"/wiki/Example_Anime_Film_One\">Example Anime Film One</a></td><td>Studio One</td><td>Director One</td><td>115</td><td>[1]</td></tr></table>"
   }
 }"#,
     )?;
