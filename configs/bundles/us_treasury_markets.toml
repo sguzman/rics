@@ -1,0 +1,9 @@
+[bundle]
+key = "finance.us_treasury_markets"
+name = "US Treasury Markets"
+
+[include]
+source_patterns = ["finance.us_treasury_markets.*"]
+
+[publish]
+file_name_template = "us-treasury-markets-{{year}}.ics"
