@@ -1,0 +1,40 @@
+[source]
+key = "anime.wikipedia.ova"
+name = "Anime Original Video Animations"
+domain = "anime"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "http"
+base_url = "https://en.wikipedia.org/w/api.php?action=parse&page=2026_in_anime&section=4&disabletoc=1&disableeditsection=1&disablelimitreport=1&noimages=1&prop=text&formatversion=2&format=json"
+method = "GET"
+headers = { accept = "application/json,text/html;q=0.9,*/*;q=0.8" }
+timeout_secs = 45
+retry_attempts = 3
+retry_backoff_ms = 500
+user_agent = "rics-calendar-bot/1.0 (https://en.wikipedia.org/wiki/2026_in_anime)"
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "anime_release"
+status = "scheduled"
+categories = ["culture", "anime", "wikipedia", "ova"]
+importance = 50
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "anime-ova-{{year}}.ics"

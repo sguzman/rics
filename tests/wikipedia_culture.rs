@@ -18,8 +18,11 @@ fn wikipedia_culture_sources_and_bundle_validate() -> Result<()> {
         .collect::<HashSet<_>>();
     assert!(keys.contains("anime.wikipedia.television"));
     assert!(keys.contains("anime.wikipedia.films"));
+    assert!(keys.contains("anime.wikipedia.ova"));
+    assert!(keys.contains("anime.wikipedia.ona"));
     assert!(keys.contains("music.us.wikipedia.albums"));
     assert!(keys.contains("television.us.wikipedia.debuts"));
+    assert!(keys.contains("television.us.wikipedia.films_specials"));
     assert!(keys.contains("television.gb.wikipedia.debuts"));
     assert!(keys.contains("books.wikipedia.literature"));
     assert!(
@@ -170,6 +173,58 @@ fn wikipedia_music_and_anime_films_build_calendars() -> Result<()> {
     assert!(anime_films.contains("DTSTART;VALUE=DATE:20260101"));
     assert!(anime_films.contains("X-RICS-STUDIO:Studio One"));
     assert!(anime_films.contains("X-RICS-WIKIPEDIA-SCHEMA:anime_films"));
+
+    Ok(())
+}
+
+#[test]
+fn wikipedia_anime_ona_ova_and_us_tv_specials_build_calendars() -> Result<()> {
+    let env = setup_extra_release_temp_env()?;
+
+    let reports = sync_sources(&SyncOptions {
+        config_dir: env.config_dir.clone(),
+        state_path: env.state_path.clone(),
+        out_dir: env.out_dir.clone(),
+        source: None,
+        dry_run: false,
+    })?;
+
+    assert_eq!(reports.len(), 3);
+
+    let ova_file = env
+        .out_dir
+        .join("sources")
+        .join("anime-wikipedia-ova")
+        .join("anime-ova-2026.ics");
+    let ona_file = env
+        .out_dir
+        .join("sources")
+        .join("anime-wikipedia-ona")
+        .join("anime-ona-2026.ics");
+    let tv_specials_file = env
+        .out_dir
+        .join("sources")
+        .join("television-us-wikipedia-films-specials")
+        .join("american-television-films-us-2026.ics");
+
+    assert!(ova_file.exists());
+    assert!(ona_file.exists());
+    assert!(tv_specials_file.exists());
+
+    let ova = fs::read_to_string(ova_file)?;
+    assert!(ova.contains("SUMMARY:Example OVA One"));
+    assert!(ova.contains("DTSTART;VALUE=DATE:20260327"));
+    assert!(ova.contains("X-RICS-WIKIPEDIA-SCHEMA:anime_television"));
+
+    let ona = fs::read_to_string(ona_file)?;
+    assert!(ona.contains("SUMMARY:Example ONA One"));
+    assert!(ona.contains("DTSTART;VALUE=DATE:20260115"));
+    assert!(ona.contains("X-RICS-WIKIPEDIA-SCHEMA:anime_television"));
+
+    let tv_specials = fs::read_to_string(tv_specials_file)?;
+    assert!(tv_specials.contains("SUMMARY:Example Special One"));
+    assert!(tv_specials.contains("DTSTART;VALUE=DATE:20260101"));
+    assert!(tv_specials.contains("X-RICS-CHANNEL:Example Network"));
 
     Ok(())
 }
@@ -548,6 +603,178 @@ file_name_template = "anime-films-{{year}}.ics"
   "parse": {
     "title": "2026 in anime",
     "text": "<table class=\"wikitable\"><tr><th>Release date</th><th>Title</th><th>Studio</th><th>Director(s)</th><th>Running time (minutes)</th><th>Ref</th></tr><tr><td>January 1</td><td><a href=\"/wiki/Example_Anime_Film_One\">Example Anime Film One</a></td><td>Studio One</td><td>Director One</td><td>115</td><td>[1]</td></tr></table>"
+  }
+}"#,
+    )?;
+
+    Ok(TempEnv {
+        config_dir: root.join("sources"),
+        state_path: root.join("state.json"),
+        out_dir: root.join("out"),
+    })
+}
+
+fn setup_extra_release_temp_env() -> Result<TempEnv> {
+    let temp = tempdir()?;
+    let root = temp.keep();
+    let source_dir = root.join("sources").join("culture");
+    let data_dir = root.join("data");
+    fs::create_dir_all(&source_dir)?;
+    fs::create_dir_all(&data_dir)?;
+
+    fs::write(
+        source_dir.join("wikipedia_anime_ova.toml"),
+        r#"[source]
+key = "anime.wikipedia.ova"
+name = "Anime Original Video Animations"
+domain = "anime"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "file"
+file_path = "../../data/ova.json"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "anime_release"
+status = "scheduled"
+categories = ["culture", "anime", "wikipedia", "ova"]
+importance = 50
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "anime-ova-{{year}}.ics"
+"#,
+    )?;
+
+    fs::write(
+        source_dir.join("wikipedia_anime_ona.toml"),
+        r#"[source]
+key = "anime.wikipedia.ona"
+name = "Anime Original Net Animations"
+domain = "anime"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+
+[fetch]
+mode = "file"
+file_path = "../../data/ona.json"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "anime_release"
+status = "scheduled"
+categories = ["culture", "anime", "wikipedia", "ona"]
+importance = 50
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "anime-ona-{{year}}.ics"
+"#,
+    )?;
+
+    fs::write(
+        source_dir.join("wikipedia_american_television_films.toml"),
+        r#"[source]
+key = "television.us.wikipedia.films_specials"
+name = "American Television Films and Specials"
+domain = "television"
+enabled = true
+timezone = "UTC"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../data/tv_specials.json"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "json"
+
+[date]
+primary = "date"
+formats = ["%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "television_release"
+status = "scheduled"
+categories = ["culture", "television", "wikipedia", "american_television", "films_specials"]
+importance = 50
+
+[custom]
+enabled = true
+parser = "wikipedia_release_table_v1"
+
+[publish]
+file_name_template = "american-television-films-us-{{year}}.ics"
+"#,
+    )?;
+
+    fs::write(
+        data_dir.join("ova.json"),
+        r#"{
+  "parse": {
+    "title": "2026 in anime",
+    "text": "<table class=\"wikitable\"><tr><th>First run start and end dates</th><th>Title</th><th>Episodes</th><th>Studio</th><th>Director(s)</th><th>Original title</th><th>Ref</th></tr><tr><td>March 27</td><td><a href=\"/wiki/Example_OVA_One\">Example OVA One</a></td><td>1</td><td>Studio OVA</td><td>Director OVA</td><td>Original OVA</td><td>[1]</td></tr></table>"
+  }
+}"#,
+    )?;
+
+    fs::write(
+        data_dir.join("ona.json"),
+        r#"{
+  "parse": {
+    "title": "2026 in anime",
+    "text": "<table class=\"wikitable\"><tr><th>First run start and end dates</th><th>Title</th><th>Episodes</th><th>Studio</th><th>Director(s)</th><th>Original title</th><th>Ref</th></tr><tr><td>January 15</td><td><a href=\"/wiki/Example_ONA_One\">Example ONA One</a></td><td>20</td><td>Studio ONA</td><td>Director ONA</td><td>Original ONA</td><td>[1]</td></tr></table>"
+  }
+}"#,
+    )?;
+
+    fs::write(
+        data_dir.join("tv_specials.json"),
+        r#"{
+  "parse": {
+    "title": "2026 in American television",
+    "text": "<table class=\"wikitable\"><tr><th>First aired</th><th>Title</th><th>Channel</th><th>Source</th></tr><tr><td>January 1</td><td><a href=\"/wiki/Example_Special_One\">Example Special One</a></td><td>Example Network</td><td>[1]</td></tr></table>"
   }
 }"#,
     )?;
