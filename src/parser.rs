@@ -2717,7 +2717,9 @@ fn collapse_whitespace(text: &str) -> String {
 #[derive(Clone, Copy)]
 enum WikipediaReleaseSchema {
     AmericanFilms,
+    AnimeTelevision,
     AmericanTelevision,
+    BritishTelevision,
     Literature,
     VideoGames,
 }
@@ -2726,7 +2728,9 @@ impl WikipediaReleaseSchema {
     fn name(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "american_films",
+            WikipediaReleaseSchema::AnimeTelevision => "anime_television",
             WikipediaReleaseSchema::AmericanTelevision => "american_television",
+            WikipediaReleaseSchema::BritishTelevision => "british_television",
             WikipediaReleaseSchema::Literature => "literature",
             WikipediaReleaseSchema::VideoGames => "video_games",
         }
@@ -2735,7 +2739,9 @@ impl WikipediaReleaseSchema {
     fn default_subtype(self) -> &'static str {
         match self {
             WikipediaReleaseSchema::AmericanFilms => "film_release",
+            WikipediaReleaseSchema::AnimeTelevision => "anime_release",
             WikipediaReleaseSchema::AmericanTelevision => "television_release",
+            WikipediaReleaseSchema::BritishTelevision => "television_release",
             WikipediaReleaseSchema::Literature => "book_release",
             WikipediaReleaseSchema::VideoGames => "video_game_release",
         }
@@ -2766,6 +2772,20 @@ fn detect_wikipedia_release_schema(headers: &[String]) -> Option<WikipediaReleas
         && normalized.iter().any(|v| v == "channel")
     {
         return Some(WikipediaReleaseSchema::AmericanTelevision);
+    }
+    if normalized.iter().any(|v| v == "date")
+        && normalized.iter().any(|v| v == "debut")
+        && normalized.iter().any(|v| v == "channel")
+    {
+        return Some(WikipediaReleaseSchema::BritishTelevision);
+    }
+    if normalized
+        .iter()
+        .any(|v| v == "first run start and end dates")
+        && normalized.iter().any(|v| v == "title")
+        && normalized.iter().any(|v| v == "studio")
+    {
+        return Some(WikipediaReleaseSchema::AnimeTelevision);
     }
     if normalized.iter().any(|v| v == "author")
         && normalized.iter().any(|v| v == "title")
@@ -2862,6 +2882,74 @@ fn parse_wikipedia_release_row(
                 title,
                 title_cell_index: 1,
                 description: Some(format!("Channel: {channel}")),
+                metadata_fields,
+                time: timing.time,
+            }))
+        }
+        WikipediaReleaseSchema::BritishTelevision => {
+            if texts.len() < 3 {
+                return Ok(None);
+            }
+
+            let timing =
+                parse_wikipedia_flexible_release_label(year, &texts[0], current_month, current_day);
+            let title = texts[1].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let channel = texts[2].clone();
+            let mut metadata_fields = BTreeMap::new();
+            metadata_fields.insert("channel".to_string(), channel.clone());
+            if let Some(note) = timing.note {
+                metadata_fields.insert("timing_note".to_string(), note);
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: 1,
+                description: Some(format!("Channel: {channel}")),
+                metadata_fields,
+                time: timing.time,
+            }))
+        }
+        WikipediaReleaseSchema::AnimeTelevision => {
+            if texts.len() < 6 {
+                return Ok(None);
+            }
+
+            let timing = parse_wikipedia_flexible_release_range_label(
+                year,
+                &texts[0],
+                current_month,
+                current_day,
+            );
+            let title = texts[1].clone();
+            if title.is_empty() {
+                return Ok(None);
+            }
+
+            let mut description_parts = Vec::new();
+            let mut metadata_fields = BTreeMap::new();
+            for (header, value) in headers.iter().skip(2).zip(texts.iter().skip(2)) {
+                if value.is_empty()
+                    || header.eq_ignore_ascii_case("Ref")
+                    || header.eq_ignore_ascii_case("Ref.")
+                {
+                    continue;
+                }
+                let key = sanitize_wikipedia_header_key(header);
+                metadata_fields.insert(key, value.clone());
+                description_parts.push(format!("{header}: {value}"));
+            }
+            if let Some(note) = timing.note {
+                metadata_fields.insert("timing_note".to_string(), note);
+            }
+
+            Ok(Some(ParsedWikipediaReleaseRow {
+                title,
+                title_cell_index: 1,
+                description: (!description_parts.is_empty()).then(|| description_parts.join("\n")),
                 metadata_fields,
                 time: timing.time,
             }))
@@ -2997,6 +3085,16 @@ fn parse_wikipedia_flexible_release_label(
     };
     *current_day = None;
     ParsedWikipediaTiming { time, note }
+}
+
+fn parse_wikipedia_flexible_release_range_label(
+    year: i32,
+    text: &str,
+    current_month: &mut Option<u32>,
+    current_day: &mut Option<u32>,
+) -> ParsedWikipediaTiming {
+    let start_part = text.split(['–', '—']).next().map(str::trim).unwrap_or(text);
+    parse_wikipedia_flexible_release_label(year, start_part, current_month, current_day)
 }
 
 fn parse_wikipedia_month_day(text: &str) -> Option<(u32, u32)> {

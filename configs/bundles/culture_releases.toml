@@ -6,7 +6,9 @@ name = "Culture Releases"
 source_patterns = [
   "films.us.wikipedia.*",
   "games.wikipedia.*",
+  "anime.wikipedia.*",
   "television.us.wikipedia.*",
+  "television.gb.wikipedia.*",
   "books.wikipedia.*",
 ]
 
