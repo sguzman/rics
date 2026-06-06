@@ -1,0 +1,9 @@
+[bundle]
+key = "finance.us_market_data"
+name = "US Market Data"
+
+[include]
+source_patterns = ["finance.us_market_data.*"]
+
+[publish]
+file_name_template = "us-market-data-{{year}}.ics"

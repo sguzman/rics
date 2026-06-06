@@ -1,0 +1,9 @@
+[bundle]
+key = "finance.us_sec_edgar"
+name = "US SEC/EDGAR"
+
+[include]
+source_patterns = ["finance.us_sec_edgar.*"]
+
+[publish]
+file_name_template = "us-sec-edgar-{{year}}.ics"

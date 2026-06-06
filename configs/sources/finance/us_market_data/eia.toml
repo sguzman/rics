@@ -1,0 +1,39 @@
+[source]
+key = "finance.us_market_data.eia"
+name = "US Market Data: EIA"
+domain = "economic-indicators"
+enabled = true
+timezone = "America/New_York"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/finance/us_market_data/eia.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "start"
+formats = ["%Y-%m-%d %I:%M %p", "%Y-%m-%d", "%Y"]
+assume_timezone = "America/New_York"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "economic_indicator"
+subtype = "energy_market_release"
+status = "scheduled"
+categories = ["economic-indicators", "energy", "finance", "market_data", "united_states", "official", "eia"]
+importance = 88
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "us-market-data-eia-{{year}}.ics"
