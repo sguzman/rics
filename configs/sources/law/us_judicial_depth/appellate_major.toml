@@ -1,0 +1,39 @@
+[source]
+key = "law.us.appellate_major"
+name = "US Judicial: US Federal Appellate Major Sittings"
+domain = "law"
+enabled = true
+timezone = "America/New_York"
+jurisdiction = "US"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/law/us_judicial_depth/appellate_major.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "start"
+formats = ["%Y-%m-%d %I:%M %p", "%Y-%m-%d", "%Y"]
+assume_timezone = "America/New_York"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "federal_event"
+subtype = "term_calendar"
+status = "scheduled"
+categories = ["law", "judicial", "united_states", "official", "appellate_major"]
+importance = 79
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "us-judicial-appellate-major-{{year}}.ics"

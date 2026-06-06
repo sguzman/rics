@@ -1,0 +1,1 @@
+2026 | European Central Bank official policy calendar 2026 | subtype=policy_meeting | institution=ecb | source_class=official | source_event_id=central-bank-ecb-2026 | source_url=https://www.ecb.europa.eu/press/calendars/mgcgcc/html/index.en.html | description=Official European Central Bank policy meeting, decision, and release calendar surface for 2026.

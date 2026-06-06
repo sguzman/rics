@@ -1,0 +1,1 @@
+2026 | Swiss National Bank official policy calendar 2026 | subtype=rate_decision | institution=snb | source_class=official | source_event_id=central-bank-snb-2026 | source_url=https://www.snb.ch/en/the-snb/mandates-goals/statistics/statpub/cal-publications | description=Official Swiss National Bank policy meeting, decision, and release calendar surface for 2026.

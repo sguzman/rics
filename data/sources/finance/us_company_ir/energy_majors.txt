@@ -1,0 +1,1 @@
+2026 | Energy Majors investor relations calendars 2026 | subtype=earnings_call | sector_group=energy_majors | source_class=official | source_event_id=company-ir-energy_majors-2026 | source_url=https://corporate.exxonmobil.com/investors | description=Official investor relations calendar surfaces for the energy majors company set in 2026.

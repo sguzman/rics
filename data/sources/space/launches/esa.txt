@@ -1,0 +1,1 @@
+2026 | ESA official launch and mission calendar 2026 | subtype=mission_calendar | operator=esa | source_class=official | source_event_id=esa-launch-calendar-2026 | source_url=https://www.esa.int/Enabling_Support/Space_Transportation/Launchers/Launch_schedule | description=Official ESA launch and mission schedule page for 2026.

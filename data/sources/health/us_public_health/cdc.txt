@@ -1,0 +1,1 @@
+2026 | CDC ACIP meeting calendar 2026 | subtype=public_meeting | agency=cdc | source_class=official | source_event_id=cdc-public-health-2026 | source_url=https://www.cdc.gov/acip/meetings/index.html | description=Official CDC ACIP public health event calendar for 2026.

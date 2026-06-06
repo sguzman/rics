@@ -1,0 +1,1 @@
+2026 | Bank of Japan official policy calendar 2026 | subtype=policy_meeting | institution=boj | source_class=official | source_event_id=central-bank-boj-2026 | source_url=https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm/ | description=Official Bank of Japan policy meeting, decision, and release calendar surface for 2026.

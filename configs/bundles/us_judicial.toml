@@ -1,0 +1,9 @@
+[bundle]
+key = "law.us_judicial"
+name = "US Judicial Depth"
+
+[include]
+source_patterns = ["law.us.*"]
+
+[publish]
+file_name_template = "us-judicial-{{year}}.ics"

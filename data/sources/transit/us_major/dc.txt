@@ -1,0 +1,1 @@
+2026 | WMATA board and hearing calendar 2026 | subtype=board_meeting | operator=dc | source_class=official | source_event_id=transit-dc-2026 | source_url=https://www.wmata.com/about/board/meetings/board-meetings.cfm | description=Official WMATA board meeting and public hearing calendar surface for 2026.

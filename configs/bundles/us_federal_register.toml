@@ -1,0 +1,9 @@
+[bundle]
+key = "regulation.us_federal_register"
+name = "US Federal Register"
+
+[include]
+source_patterns = ["regulation.us_federal_register.*"]
+
+[publish]
+file_name_template = "us-federal-register-{{year}}.ics"

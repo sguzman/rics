@@ -1,0 +1,1 @@
+2026 | Telecom Federal Register calendar 2026 | subtype=rulemaking_window | agency=federal | source_class=official | source_event_id=fr-telecom-2026 | source_url=https://www.federalregister.gov/agencies/federal-communications-commission | description=Official Federal Register agency page for telecom-related rulemaking, comment periods, hearings, and effective dates during 2026.

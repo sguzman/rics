@@ -1,0 +1,1 @@
+2026 | NOAA CPC seasonal outlook calendar 2026 | subtype=seasonal_forecast | agency=noaa | source_class=official | source_event_id=noaa-cpc-2026 | source_url=https://www.cpc.ncep.noaa.gov/products/predictions/long_range/ | description=Official NOAA Climate Prediction Center outlook calendar and release surfaces for 2026.

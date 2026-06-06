@@ -1,0 +1,1 @@
+2026 | US Federal Appellate Major Sittings calendar 2026 | subtype=term_calendar | institution=appellate_major | source_class=official | source_event_id=law-appellate_major-2026 | source_url=https://www.uscourts.gov/courts-court-links | description=Official us federal appellate major sittings calendar surface for 2026.

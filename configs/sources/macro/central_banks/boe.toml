@@ -1,0 +1,39 @@
+[source]
+key = "macro.central_banks.boe"
+name = "Central Bank: Bank of England"
+domain = "macro"
+enabled = true
+timezone = "UTC"
+jurisdiction = "GLOBAL"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/macro/central_banks/boe.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "start"
+formats = ["%Y-%m-%d %I:%M %p", "%Y-%m-%d", "%Y"]
+assume_timezone = "UTC"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "finance_event"
+subtype = "rate_decision"
+status = "scheduled"
+categories = ["macro", "central_banks", "official", "boe"]
+importance = 83
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "central-bank-boe-{{year}}.ics"

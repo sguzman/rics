@@ -1,0 +1,9 @@
+[bundle]
+key = "grants.us_public_funding"
+name = "US Public Funding"
+
+[include]
+source_patterns = ["grants.us.*"]
+
+[publish]
+file_name_template = "us-public-funding-{{year}}.ics"

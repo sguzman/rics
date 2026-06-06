@@ -1,0 +1,9 @@
+[bundle]
+key = "health.us_public_health"
+name = "US Public Health"
+
+[include]
+source_patterns = ["health.us.*"]
+
+[publish]
+file_name_template = "us-public-health-{{year}}.ics"

@@ -1,0 +1,9 @@
+[bundle]
+key = "weather.us.noaa"
+name = "US NOAA"
+
+[include]
+source_patterns = ["weather.us.noaa.*"]
+
+[publish]
+file_name_template = "us-noaa-{{year}}.ics"

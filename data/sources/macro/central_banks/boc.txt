@@ -1,0 +1,1 @@
+2026 | Bank of Canada official policy calendar 2026 | subtype=rate_decision | institution=boc | source_class=official | source_event_id=central-bank-boc-2026 | source_url=https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/ | description=Official Bank of Canada policy meeting, decision, and release calendar surface for 2026.

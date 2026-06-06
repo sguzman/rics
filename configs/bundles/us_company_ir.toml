@@ -1,0 +1,9 @@
+[bundle]
+key = "finance.us_company_ir"
+name = "US Company IR"
+
+[include]
+source_patterns = ["finance.us_company_ir.*"]
+
+[publish]
+file_name_template = "us-company-ir-{{year}}.ics"

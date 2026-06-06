@@ -1,0 +1,1 @@
+2026 | Mega-Cap Tech investor relations calendars 2026 | subtype=investor_day | sector_group=mega_cap_tech | source_class=official | source_event_id=company-ir-mega_cap_tech-2026 | source_url=https://investor.apple.com/ | description=Official investor relations calendar surfaces for the mega-cap tech company set in 2026.

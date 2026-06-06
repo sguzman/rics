@@ -1,0 +1,9 @@
+[bundle]
+key = "space.launches.all"
+name = "Space Launches"
+
+[include]
+source_patterns = ["space.launches.*"]
+
+[publish]
+file_name_template = "space-launches-{{year}}.ics"

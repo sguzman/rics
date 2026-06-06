@@ -1,0 +1,9 @@
+[bundle]
+key = "macro.central_banks"
+name = "Global Central Banks"
+
+[include]
+source_patterns = ["macro.central_banks.*"]
+
+[publish]
+file_name_template = "central-banks-{{year}}.ics"

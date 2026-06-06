@@ -1,0 +1,9 @@
+[bundle]
+key = "transit.us_major"
+name = "US Major Transit"
+
+[include]
+source_patterns = ["transit.us.*"]
+
+[publish]
+file_name_template = "us-transit-major-{{year}}.ics"

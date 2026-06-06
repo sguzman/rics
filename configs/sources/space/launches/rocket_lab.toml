@@ -1,0 +1,39 @@
+[source]
+key = "space.launches.rocket_lab"
+name = "Space Launches: Rocket Lab"
+domain = "space"
+enabled = true
+timezone = "America/New_York"
+jurisdiction = "GLOBAL"
+default_country = "US"
+
+[fetch]
+mode = "file"
+file_path = "../../../../data/sources/space/launches/rocket_lab.txt"
+timeout_secs = 10
+retry_attempts = 1
+retry_backoff_ms = 10
+
+[extract]
+format = "text"
+
+[date]
+primary = "start"
+formats = ["%Y-%m-%d %I:%M %p", "%Y-%m-%d", "%Y"]
+assume_timezone = "America/New_York"
+allow_month_only = true
+allow_year_only = true
+
+[event]
+event_type = "space_event"
+subtype = "mission_calendar"
+status = "scheduled"
+categories = ["space", "launches", "official", "rocket_lab"]
+importance = 85
+
+[custom]
+enabled = true
+parser = "structured_calendar_feed_v1"
+
+[publish]
+file_name_template = "space-rocket-lab-{{year}}.ics"
