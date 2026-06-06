@@ -1,0 +1,9 @@
+[bundle]
+key = "finance.us_macro_official"
+name = "US Official Macro Calendar"
+
+[include]
+source_patterns = ["finance.us_macro_official.*"]
+
+[publish]
+file_name_template = "us-macro-official-{{year}}.ics"
