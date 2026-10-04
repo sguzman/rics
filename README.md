@@ -53,3 +53,25 @@ cargo run -- --help
 
 - Keep source configurations and fixtures close together so new adapters stay testable.
 - Clarify identity/update rules further as more event sources are added.
+
+
+## Batch acquisition
+
+`rics sync` accepts either one exact source key or a comma-separated set of exact
+source keys through `--source`.
+
+For large heterogeneous acquisition runs, `--best-effort` isolates ordinary
+fetch/parse failures so one drifting source does not abort the entire batch.
+Use `--report-path` to persist a JSON report containing successful
+`SourceRunReport` rows and explicit failures.
+
+```bash
+cargo run --release -- \
+  sync \
+  --source "sports.us.nfl,sports.us.nba,macro.central_banks.boc" \
+  --best-effort \
+  --report-path /tmp/rics-sync-report.json
+```
+
+Merge/state/rendering failures still stop the run because they indicate an
+internal consistency problem rather than normal upstream-source drift.
