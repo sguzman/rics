@@ -187,7 +187,7 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SourceRunReport {
     pub source_key: String,
     pub pages_fetched: usize,

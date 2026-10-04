@@ -97,6 +97,24 @@ fn sync_updates_existing_future_events() -> Result<()> {
 }
 
 #[test]
+fn sync_accepts_comma_separated_source_selection() -> Result<()> {
+    let env = setup_fixture_env()?;
+
+    let reports = sync_sources(&SyncOptions {
+        config_dir: env.config_dir.clone(),
+        state_path: env.state_path.clone(),
+        out_dir: env.out_dir.clone(),
+        source: Some("test.oecd.fixture,does.not.exist".to_string()),
+        dry_run: false,
+    })?;
+
+    assert_eq!(reports.len(), 1);
+    assert_eq!(reports[0].source_key, "test.oecd.fixture");
+    Ok(())
+}
+
+
+#[test]
 fn harness_reports_stability_metrics() -> Result<()> {
     let env = setup_fixture_env()?;
 

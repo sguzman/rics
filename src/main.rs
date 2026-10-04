@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use rics::harness::{HarnessOptions, run_harness};
 use rics::pipeline::{
     BuildOptions, PublishOptions, SyncOptions, ValidateOptions, build_calendars,
-    publish_existing_calendars, sync_sources, validate_configs,
+    publish_existing_calendars, sync_sources, sync_sources_best_effort, validate_configs,
 };
 use std::path::PathBuf;
 use tracing::info;
@@ -28,10 +28,14 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Sync {
-        #[arg(long)]
+        #[arg(long, help = "Exact source key or comma-separated source keys")]
         source: Option<String>,
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        #[arg(long, default_value_t = false)]
+        best_effort: bool,
+        #[arg(long)]
+        report_path: Option<PathBuf>,
     },
     Build {
         #[arg(long)]
@@ -57,26 +61,67 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Sync { source, dry_run } => {
-            let reports = sync_sources(&SyncOptions {
+        Commands::Sync {
+            source,
+            dry_run,
+            best_effort,
+            report_path,
+        } => {
+            let options = SyncOptions {
                 config_dir: cli.config_dir,
                 state_path: cli.state_path,
                 out_dir: cli.out_dir,
                 source,
                 dry_run,
-            })?;
+            };
 
-            for report in reports {
-                info!(
-                    source = %report.source_key,
-                    pages = report.pages_fetched,
-                    parsed = report.records_parsed,
-                    inserted = report.inserted,
-                    updated = report.updated,
-                    unchanged = report.unchanged,
-                    cancelled = report.cancelled,
-                    "source sync summary"
-                );
+            if best_effort {
+                let report = sync_sources_best_effort(&options)?;
+                for source_report in &report.reports {
+                    info!(
+                        source = %source_report.source_key,
+                        pages = source_report.pages_fetched,
+                        parsed = source_report.records_parsed,
+                        inserted = source_report.inserted,
+                        updated = source_report.updated,
+                        unchanged = source_report.unchanged,
+                        cancelled = source_report.cancelled,
+                        "source sync summary"
+                    );
+                }
+                for failure in &report.failures {
+                    info!(
+                        source = %failure.source_key,
+                        stage = %failure.stage,
+                        error = %failure.error,
+                        "source sync failure"
+                    );
+                }
+
+                let rendered = serde_json::to_string_pretty(&report)? + "\n";
+                if let Some(path) = report_path {
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::write(&path, &rendered)?;
+                    info!(path = %path.display(), "best-effort sync report written");
+                } else {
+                    println!("{rendered}");
+                }
+            } else {
+                let reports = sync_sources(&options)?;
+                for report in reports {
+                    info!(
+                        source = %report.source_key,
+                        pages = report.pages_fetched,
+                        parsed = report.records_parsed,
+                        inserted = report.inserted,
+                        updated = report.updated,
+                        unchanged = report.unchanged,
+                        cancelled = report.cancelled,
+                        "source sync summary"
+                    );
+                }
             }
         }
         Commands::Build { source, year } => {

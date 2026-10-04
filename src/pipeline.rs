@@ -24,6 +24,31 @@ pub struct SyncOptions {
     pub dry_run: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SourceRunFailure {
+    pub source_key: String,
+    pub stage: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchSyncReport {
+    pub reports: Vec<SourceRunReport>,
+    pub failures: Vec<SourceRunFailure>,
+}
+
+fn apply_source_filter(sources: &mut Vec<LoadedSource>, raw: &Option<String>) {
+    let Some(raw) = raw else {
+        return;
+    };
+    let wanted = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<HashSet<_>>();
+    sources.retain(|source| wanted.contains(source.config.source.key.as_str()));
+}
+
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub config_dir: PathBuf,
@@ -49,9 +74,7 @@ pub struct ValidateOptions {
 
 pub fn sync_sources(options: &SyncOptions) -> Result<Vec<SourceRunReport>> {
     let mut sources = load_sources_from_dir(&options.config_dir)?;
-    if let Some(filter) = &options.source {
-        sources.retain(|s| s.config.source.key == *filter);
-    }
+    apply_source_filter(&mut sources, &options.source);
     if sources.is_empty() {
         bail!("no matching source configurations found");
     }
@@ -109,6 +132,106 @@ pub fn sync_sources(options: &SyncOptions) -> Result<Vec<SourceRunReport>> {
     }
 
     Ok(reports)
+}
+
+
+pub fn sync_sources_best_effort(options: &SyncOptions) -> Result<BatchSyncReport> {
+    let mut sources = load_sources_from_dir(&options.config_dir)?;
+    apply_source_filter(&mut sources, &options.source);
+    if sources.is_empty() {
+        bail!("no matching source configurations found");
+    }
+
+    let mut state = load_state(&options.state_path)?;
+    let mut reports = Vec::new();
+    let mut failures = Vec::new();
+
+    for source in sources {
+        if !source.config.source.enabled {
+            info!(source = %source.config.source.key, "source disabled; skipping");
+            continue;
+        }
+
+        info!(source = %source.config.source.key, "best-effort sync start");
+
+        let docs = match fetch_source_documents(&source) {
+            Ok(value) => value,
+            Err(err) => {
+                warn!(
+                    source = %source.config.source.key,
+                    error = %err,
+                    "best-effort fetch failed; continuing"
+                );
+                failures.push(SourceRunFailure {
+                    source_key: source.config.source.key.clone(),
+                    stage: "fetch".to_string(),
+                    error: format!("{err:#}"),
+                });
+                continue;
+            }
+        };
+
+        let candidates = match parse_source_events(&source, &docs) {
+            Ok(value) => value,
+            Err(err) => {
+                warn!(
+                    source = %source.config.source.key,
+                    error = %err,
+                    "best-effort parse failed; continuing"
+                );
+                failures.push(SourceRunFailure {
+                    source_key: source.config.source.key.clone(),
+                    stage: "parse".to_string(),
+                    error: format!("{err:#}"),
+                });
+                continue;
+            }
+        };
+
+        let mut report = SourceRunReport {
+            source_key: source.config.source.key.clone(),
+            pages_fetched: docs.len(),
+            records_parsed: candidates.len(),
+            ..SourceRunReport::default()
+        };
+
+        let changed_years = merge_source_events(&mut state, &source, candidates, &mut report)?;
+
+        info!(
+            source = %report.source_key,
+            inserted = report.inserted,
+            updated = report.updated,
+            unchanged = report.unchanged,
+            cancelled = report.cancelled,
+            changed_years = ?changed_years,
+            "best-effort sync merge complete"
+        );
+
+        if !options.dry_run {
+            rebuild_source_calendars(
+                &state,
+                &source,
+                &options.out_dir,
+                None,
+                Some(changed_years),
+            )?;
+        }
+
+        reports.push(report);
+    }
+
+    if !options.dry_run {
+        let bundles = load_optional_bundles(&options.config_dir)?;
+        rebuild_bundles(&state, &bundles, &options.out_dir, None)?;
+        let all_sources = load_sources_from_dir(&options.config_dir)?;
+        export_snapshot(&state, &all_sources, &bundles, &options.out_dir)?;
+        save_state(&options.state_path, &state)?;
+        info!(state = %options.state_path.display(), "best-effort state written");
+    } else {
+        info!("dry run enabled; state and calendars not persisted");
+    }
+
+    Ok(BatchSyncReport { reports, failures })
 }
 
 pub fn build_calendars(options: &BuildOptions) -> Result<()> {
